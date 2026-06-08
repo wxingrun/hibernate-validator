@@ -5,6 +5,7 @@
 package org.hibernate.validator.test.cfg;
 
 import java.lang.reflect.Field;
+import java.time.Duration;
 
 import jakarta.validation.Configuration;
 import jakarta.validation.Validation;
@@ -12,6 +13,7 @@ import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 import jakarta.validation.bootstrap.GenericBootstrap;
 
+import org.hibernate.validator.HibernateValidator;
 import org.hibernate.validator.HibernateValidatorConfiguration;
 import org.hibernate.validator.internal.IgnoreForbiddenApisErrors;
 import org.hibernate.validator.internal.engine.MethodValidationConfiguration;
@@ -27,19 +29,6 @@ import org.testng.annotations.Test;
  */
 public class ConfigurationFilePropertiesTest {
 
-	/**
-	 * The following test assumes that the file META-INF/validation.xml is present and
-	 * contains:
-	 * <pre>{@code
-	 * <property name="hibernate.validator.allow_parameter_constraint_override">true</property>
-	 * <property name="hibernate.validator.allow_multiple_cascaded_validation_on_return_values">true</property>
-	 * <property name="hibernate.validator.allow_parallel_method_parameter_constraint">true</property>
-	 * <property name="hibernate.validator.fail_fast">true</property>
-	 * }</pre>
-	 *
-	 * The Maven build runs this test in a separate execution of surefire, which adds the
-	 * path to the required file onto its classpath.
-	 */
 	@Test
 	public void testAllowMultipleCascadedValidationOnReturnValues() {
 		runWithCustomValidationXml( "ConfigurationFilePropertiesTest_validation.xml", new Runnable() {
@@ -54,9 +43,6 @@ public class ConfigurationFilePropertiesTest {
 				Assert.assertTrue( config instanceof HibernateValidatorConfiguration );
 
 				HibernateValidatorConfiguration hibernateConfig = (HibernateValidatorConfiguration) config;
-
-				// Note that the configuration from the XML is not read until the
-				// buildValidatorFactory() method is called.
 				ValidatorFactory factory = hibernateConfig.buildValidatorFactory();
 				Validator validator = factory.getValidator();
 
@@ -83,9 +69,6 @@ public class ConfigurationFilePropertiesTest {
 				Assert.assertTrue( config instanceof HibernateValidatorConfiguration );
 
 				HibernateValidatorConfiguration hibernateConfig = (HibernateValidatorConfiguration) config;
-
-				// Note that the configuration from the XML is not read until the
-				// buildValidatorFactory() method is called.
 				ValidatorFactory factory = hibernateConfig.buildValidatorFactory();
 				Validator validator = factory.getValidator();
 
@@ -112,9 +95,6 @@ public class ConfigurationFilePropertiesTest {
 				Assert.assertTrue( config instanceof HibernateValidatorConfiguration );
 
 				HibernateValidatorConfiguration hibernateConfig = (HibernateValidatorConfiguration) config;
-
-				// Note that the configuration from the XML is not read until the
-				// buildValidatorFactory() method is called.
 				ValidatorFactory factory = hibernateConfig.buildValidatorFactory();
 				Validator validator = factory.getValidator();
 
@@ -127,16 +107,41 @@ public class ConfigurationFilePropertiesTest {
 		} );
 	}
 
-	/**
-	 * Reflect into the subject and find the first property of the given type.
-	 *
-	 * @param subject - the instance to reflect on
-	 * @param clazz - exactly the class to match on
-	 *
-	 * @return
-	 */
+	@Test
+	public void testBeanMetaDataCacheConfiguredThroughValidationXml() {
+		runWithCustomValidationXml( "ConfigurationFilePropertiesTest_validation.xml", new Runnable() {
+
+			@Override
+			public void run() {
+				GenericBootstrap provider = Validation.byDefaultProvider();
+				HibernateValidatorConfiguration hibernateConfig = (HibernateValidatorConfiguration) provider.configure();
+
+				ValidatorFactory factory = hibernateConfig.buildValidatorFactory();
+				ValidatorImpl validator = (ValidatorImpl) factory.getValidator();
+				BeanMetaDataManager beanMetaDataManager = findPropertyOfType( validator, BeanMetaDataManager.class );
+
+				Assert.assertEquals( findFieldValue( beanMetaDataManager, "beanMetaDataCacheMaxSize", Long.class ), Long.valueOf( 128 ) );
+				Assert.assertEquals( findFieldValue( beanMetaDataManager, "beanMetaDataCacheExpireAfterAccess", Duration.class ), Duration.ofSeconds( 30 ) );
+			}
+		} );
+	}
+
+	@Test
+	public void testBeanMetaDataCacheConfiguredProgrammatically() {
+		HibernateValidatorConfiguration configuration = Validation.byProvider( HibernateValidator.class ).configure();
+		ValidatorFactory factory = configuration
+				.beanMetaDataCacheMaxSize( 64 )
+				.beanMetaDataCacheExpireAfterAccess( Duration.ofSeconds( 5 ) )
+				.buildValidatorFactory();
+		ValidatorImpl validator = (ValidatorImpl) factory.getValidator();
+		BeanMetaDataManager beanMetaDataManager = findPropertyOfType( validator, BeanMetaDataManager.class );
+
+		Assert.assertEquals( findFieldValue( beanMetaDataManager, "beanMetaDataCacheMaxSize", Long.class ), Long.valueOf( 64 ) );
+		Assert.assertEquals( findFieldValue( beanMetaDataManager, "beanMetaDataCacheExpireAfterAccess", Duration.class ), Duration.ofSeconds( 5 ) );
+	}
+
 	@IgnoreForbiddenApisErrors(reason = "Prints the stacktrace in case an exception is raised")
-	private <T extends Object> T findPropertyOfType(Object subject, Class<T> clazz) {
+	private <T> T findPropertyOfType(Object subject, Class<T> clazz) {
 		Field[] fields = subject.getClass().getDeclaredFields();
 		for ( Field field : fields ) {
 			if ( field.getType().equals( clazz ) ) {
@@ -156,8 +161,22 @@ public class ConfigurationFilePropertiesTest {
 		return null;
 	}
 
+	@IgnoreForbiddenApisErrors(reason = "Uses reflection to access private fields in tests")
+	private <T> T findFieldValue(Object subject, String fieldName, Class<T> fieldType) {
+		try {
+			Field field = subject.getClass().getDeclaredField( fieldName );
+			boolean accessible = field.canAccess( subject );
+			field.setAccessible( true );
+			Object value = field.get( subject );
+			field.setAccessible( accessible );
+			return fieldType.cast( value );
+		}
+		catch (NoSuchFieldException | IllegalAccessException e) {
+			throw new AssertionError( e );
+		}
+	}
+
 	private void runWithCustomValidationXml(String validationXmlName, Runnable runnable) {
 		new ValidationXmlTestHelper( ConfigurationFilePropertiesTest.class ).runWithCustomValidationXml( validationXmlName, runnable );
 	}
-
 }

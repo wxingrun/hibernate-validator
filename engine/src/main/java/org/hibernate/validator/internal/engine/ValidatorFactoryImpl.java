@@ -7,6 +7,8 @@ package org.hibernate.validator.internal.engine;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineAllowMultipleCascadedValidationOnReturnValues;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineAllowOverridingMethodAlterParameterConstraint;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineAllowParallelMethodsDefineParameterConstraints;
+import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineBeanMetaDataCacheExpireAfterAccess;
+import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineBeanMetaDataCacheMaxSize;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineBeanMetaDataClassNormalizer;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineConstraintExpressionLanguageFeatureLevel;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineConstraintMappings;
@@ -88,45 +90,19 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 
 	private static final Log LOG = LoggerFactory.make( MethodHandles.lookup() );
 
-	/**
-	 * Context containing all {@link ValidatorFactory} level helpers and configuration properties.
-	 */
 	private final ValidatorFactoryScopedContext validatorFactoryScopedContext;
 
-	/**
-	 * Programmatic constraints passed via the Hibernate Validator specific API. Empty if there are
-	 * no programmatic constraints
-	 */
 	@Immutable
 	private final Set<DefaultConstraintMapping> constraintMappings;
 
-	/**
-	 * The constraint creation context containing all the helpers necessary to the constraint creation.
-	 */
 	private final ConstraintCreationContext constraintCreationContext;
 
-	/**
-	 * Used for discovering overridden methods. Thread-safe.
-	 */
 	private final ExecutableHelper executableHelper;
 
-	/**
-	 * Hibernate Validator specific flags to relax constraints on parameters.
-	 */
 	private final MethodValidationConfiguration methodValidationConfiguration;
 
-	/**
-	 * Metadata provider for XML configuration.
-	 */
 	private final XmlMetaDataProvider xmlMetaDataProvider;
 
-	/**
-	 * Prior to the introduction of {@code ParameterNameProvider} all the bean meta data was static and could be
-	 * cached for all created {@code Validator}s. {@code ParameterNameProvider} makes parts of the meta data and
-	 * Bean Validation element descriptors dynamic, since depending of the used provider different parameter names
-	 * could be used. To still have the metadata static we create a {@code BeanMetaDataManager} per parameter name
-	 * provider. See also HV-659.
-	 */
 	@ThreadSafe
 	private final ConcurrentMap<BeanMetaDataManagerKey, BeanMetaDataManager> beanMetaDataManagers = new ConcurrentHashMap<>();
 
@@ -138,6 +114,10 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 
 	private final ProcessedBeansTrackingVoter processedBeansTrackingVoter;
 
+	private final Long beanMetaDataCacheMaxSize;
+
+	private final Duration beanMetaDataCacheExpireAfterAccess;
+
 	public ValidatorFactoryImpl(ConfigurationState configurationState) {
 		ClassLoader externalClassLoader = determineExternalClassLoader( configurationState );
 
@@ -147,6 +127,8 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 		}
 
 		Map<String, String> properties = configurationState.getProperties();
+		this.beanMetaDataCacheMaxSize = determineBeanMetaDataCacheMaxSize( hibernateSpecificConfig, properties );
+		this.beanMetaDataCacheExpireAfterAccess = determineBeanMetaDataCacheExpireAfterAccess( hibernateSpecificConfig, properties );
 
 		this.methodValidationConfiguration = new MethodValidationConfiguration.Builder()
 				.allowOverridingMethodAlterParameterConstraint(
@@ -192,8 +174,6 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 				ValidatorFactoryConfigurationHelper.determinePropertyNodeNameProvider( hibernateSpecificConfig, properties, externalClassLoader ) );
 		this.beanMetadataClassNormalizer = determineBeanMetaDataClassNormalizer( hibernateSpecificConfig );
 
-		// first we want to register any validators coming from a service loader. Since they are just loaded and there's
-		// no control over them (include/exclude the ones that already exists from any other sources etc.)
 		registerCustomConstraintValidators(
 				determineServiceLoadedConstraintMappings(
 						typeResolutionHelper,
@@ -202,9 +182,6 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 				),
 				constraintHelper );
 
-		// we parse all XML mappings but only register constraint validators and delay constraint mappings building till
-		// we collect all the constraint validators.
-		// HV-302; don't load XmlMappingParser if not necessary
 		MappingXmlParser mappingParser = null;
 		if ( !configurationState.getMappingStreams().isEmpty() ) {
 			mappingParser = new MappingXmlParser( constraintCreationContext,
@@ -221,8 +198,6 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 				)
 		);
 
-		// now the final step of registering any constraint validators that can come either from ConstraintMappingContributors
-		// or from programmatic mappings
 		registerCustomConstraintValidators( constraintMappings, constraintHelper );
 
 		if ( mappingParser != null && mappingParser.createConstrainedElements() ) {
@@ -318,7 +293,6 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 
 	@Override
 	public <T> T unwrap(Class<T> type) {
-		//allow unwrapping into public super types
 		if ( type.isAssignableFrom( HibernateValidatorFactory.class ) ) {
 			return type.cast( this );
 		}
@@ -360,7 +334,9 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 						validationOrderGenerator,
 						buildMetaDataProviders(),
 						methodValidationConfiguration,
-						processedBeansTrackingVoter
+						processedBeansTrackingVoter,
+						beanMetaDataCacheMaxSize,
+						beanMetaDataCacheExpireAfterAccess
 				)
 		);
 

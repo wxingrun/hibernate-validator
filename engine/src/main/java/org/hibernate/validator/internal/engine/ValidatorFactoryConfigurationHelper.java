@@ -63,14 +63,9 @@ final class ValidatorFactoryConfigurationHelper {
 		if ( configurationState instanceof AbstractConfigurationImpl ) {
 			AbstractConfigurationImpl<?> hibernateConfiguration = (AbstractConfigurationImpl<?>) configurationState;
 
-			// programmatic config
-			/* We add these first so that constraint mapping created through DefaultConstraintMappingBuilder will take
-			 * these programmatically defined mappings into account when checking for constraint definition uniqueness
-			 */
 			constraintMappings.addAll( hibernateConfiguration.getProgrammaticMappings() );
 		}
 
-		// XML-defined constraint mapping contributors
 		List<ConstraintMappingContributor> contributors = determinePropertyConfiguredConstraintMappingContributors( configurationState.getProperties(),
 				externalClassLoader );
 
@@ -87,7 +82,6 @@ final class ValidatorFactoryConfigurationHelper {
 			JavaBeanHelper javaBeanHelper, ClassLoader externalClassLoader) {
 		Set<DefaultConstraintMapping> constraintMappings = newHashSet();
 
-		// service loader based config
 		ConstraintMappingContributor serviceLoaderBasedContributor = new ServiceLoaderBasedConstraintMappingContributor(
 				typeResolutionHelper,
 				externalClassLoader != null ? externalClassLoader : GetClassLoader.fromContext()
@@ -107,14 +101,6 @@ final class ValidatorFactoryConfigurationHelper {
 		return value;
 	}
 
-	/**
-	 * Returns a list with {@link ConstraintMappingContributor}s configured via the
-	 * {@link HibernateValidatorConfiguration#CONSTRAINT_MAPPING_CONTRIBUTORS} property.
-	 *
-	 * @param properties the properties used to bootstrap the factory
-	 *
-	 * @return a list with property-configured {@link ConstraintMappingContributor}s; May be empty but never {@code null}
-	 */
 	static List<ConstraintMappingContributor> determinePropertyConfiguredConstraintMappingContributors(
 			Map<String, String> properties, ClassLoader externalClassLoader) {
 		String propertyValue = properties.get( HibernateValidatorConfiguration.CONSTRAINT_MAPPING_CONTRIBUTORS );
@@ -168,13 +154,11 @@ final class ValidatorFactoryConfigurationHelper {
 	}
 
 	static boolean determineFailFast(AbstractConfigurationImpl<?> configuration, Map<String, String> properties) {
-		// check whether fail fast is programmatically enabled
 		boolean tmpFailFast = configuration != null ? configuration.getFailFast() : false;
 
 		String propertyStringValue = properties.get( HibernateValidatorConfiguration.FAIL_FAST );
 		if ( propertyStringValue != null ) {
 			boolean configurationValue = Boolean.valueOf( propertyStringValue );
-			// throw an exception if the programmatic value is true and it overrides a false configured value
 			if ( tmpFailFast && !configurationValue ) {
 				throw LOG.getInconsistentFailFastConfigurationException();
 			}
@@ -185,13 +169,11 @@ final class ValidatorFactoryConfigurationHelper {
 	}
 
 	static boolean determineFailFastOnPropertyViolation(AbstractConfigurationImpl<?> configuration, Map<String, String> properties) {
-		// check whether fail fast on property violation is programmatically enabled
 		boolean tmpFailFastOnPropertyViolation = configuration != null ? configuration.getFailFastOnPropertyViolation() : false;
 
 		String propertyStringValue = properties.get( HibernateValidatorConfiguration.FAIL_FAST_ON_PROPERTY_VIOLATION );
 		if ( propertyStringValue != null ) {
 			boolean configurationValue = Boolean.valueOf( propertyStringValue );
-			// throw an exception if the programmatic value is true and it overrides a false configured value
 			if ( tmpFailFastOnPropertyViolation && !configurationValue ) {
 				throw LOG.getInconsistentFailFastOnPropertyViolationConfigurationException();
 			}
@@ -250,6 +232,48 @@ final class ValidatorFactoryConfigurationHelper {
 		}
 
 		return Duration.ZERO;
+	}
+
+	static Long determineBeanMetaDataCacheMaxSize(ConfigurationImpl configuration, Map<String, String> properties) {
+		if ( configuration != null && configuration.getBeanMetaDataCacheMaxSize() != null ) {
+			if ( LOG.isDebugEnabled() ) {
+				LOG.debug( "Bean metadata cache max size set to " + configuration.getBeanMetaDataCacheMaxSize() + "." );
+			}
+			return configuration.getBeanMetaDataCacheMaxSize();
+		}
+
+		String maxSizeProperty = properties.get( HibernateValidatorConfiguration.BEAN_META_DATA_CACHE_MAX_SIZE );
+		if ( maxSizeProperty != null ) {
+			long maxSize = parsePositiveLong( maxSizeProperty, HibernateValidatorConfiguration.BEAN_META_DATA_CACHE_MAX_SIZE );
+			if ( LOG.isDebugEnabled() ) {
+				LOG.debug( "Bean metadata cache max size set to " + maxSize + "." );
+			}
+			return maxSize;
+		}
+
+		return null;
+	}
+
+	static Duration determineBeanMetaDataCacheExpireAfterAccess(ConfigurationImpl configuration, Map<String, String> properties) {
+		if ( configuration != null && configuration.getBeanMetaDataCacheExpireAfterAccess() != null ) {
+			if ( LOG.isDebugEnabled() ) {
+				LOG.debug( "Bean metadata cache expire-after-access set to " + configuration.getBeanMetaDataCacheExpireAfterAccess() + "." );
+			}
+			return configuration.getBeanMetaDataCacheExpireAfterAccess();
+		}
+
+		String expireAfterAccessProperty = properties.get( HibernateValidatorConfiguration.BEAN_META_DATA_CACHE_EXPIRE_AFTER_ACCESS );
+		if ( expireAfterAccessProperty != null ) {
+			Duration expireAfterAccess = Duration.ofMillis(
+					parsePositiveLong( expireAfterAccessProperty, HibernateValidatorConfiguration.BEAN_META_DATA_CACHE_EXPIRE_AFTER_ACCESS )
+			);
+			if ( LOG.isDebugEnabled() ) {
+				LOG.debug( "Bean metadata cache expire-after-access set to " + expireAfterAccess + "." );
+			}
+			return expireAfterAccess;
+		}
+
+		return null;
 	}
 
 	static Object determineConstraintValidatorPayload(ConfigurationState configurationState) {
@@ -433,13 +457,11 @@ final class ValidatorFactoryConfigurationHelper {
 	}
 
 	static boolean determineShowValidatedValuesInTraceLogs(AbstractConfigurationImpl<?> configuration, Map<String, String> properties) {
-		// check whether showing the validation values in trace logs is programmatically enabled
 		boolean tmpShowValidatedValuesInTraceLogging = configuration != null ? configuration.getShowValidatedValuesInTraceLogs() : false;
 
 		String propertyStringValue = properties.get( HibernateValidatorConfiguration.SHOW_VALIDATED_VALUE_IN_TRACE_LOGS );
 		if ( propertyStringValue != null ) {
 			boolean configurationValue = Boolean.valueOf( propertyStringValue );
-			// throw an exception if the programmatic value is true, and it overrides a false configured value
 			if ( tmpShowValidatedValuesInTraceLogging && !configurationValue ) {
 				throw LOG.getInconsistentShowValidatedValuesInTraceLogsViolationConfigurationException();
 			}
@@ -457,9 +479,19 @@ final class ValidatorFactoryConfigurationHelper {
 		LOG.logValidatorFactoryScopedConfiguration( context.getScriptEvaluatorFactory().getClass(), "script evaluator factory" );
 	}
 
-	/**
-	 * The one and only {@link ConstraintMappingContributor.ConstraintMappingBuilder} implementation.
-	 */
+	private static long parsePositiveLong(String value, String propertyName) {
+		try {
+			long parsedValue = Long.parseLong( value );
+			if ( parsedValue <= 0 ) {
+				throw LOG.getIllegalArgumentException( propertyName + " must be greater than 0" );
+			}
+			return parsedValue;
+		}
+		catch (NumberFormatException e) {
+			throw LOG.getIllegalArgumentException( propertyName + " must be a positive long value" );
+		}
+	}
+
 	private static class DefaultConstraintMappingBuilder
 			implements ConstraintMappingContributor.ConstraintMappingBuilder {
 

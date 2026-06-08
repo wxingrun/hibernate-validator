@@ -15,4 +15,6 @@
 	<property name="hibernate.validator.allow_multiple_cascaded_validation_on_result">true</property>
 	<property name="hibernate.validator.allow_parallel_method_parameter_constraint">true</property>
 	<property name="hibernate.validator.fail_fast">true</property>
+	<property name="hibernate.validator.bean_metadata_cache_max_size">128</property>
+	<property name="hibernate.validator.bean_metadata_cache_expire_after_access">30000</property>
 </validation-config>
