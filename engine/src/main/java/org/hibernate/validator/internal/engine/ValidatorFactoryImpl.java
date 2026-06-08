@@ -7,6 +7,8 @@ package org.hibernate.validator.internal.engine;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineAllowMultipleCascadedValidationOnReturnValues;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineAllowOverridingMethodAlterParameterConstraint;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineAllowParallelMethodsDefineParameterConstraints;
+import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineBeanMetaDataCacheExpireAfterAccess;
+import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineBeanMetaDataCacheMaxSize;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineBeanMetaDataClassNormalizer;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineConstraintExpressionLanguageFeatureLevel;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineConstraintMappings;
@@ -138,6 +140,10 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 
 	private final ProcessedBeansTrackingVoter processedBeansTrackingVoter;
 
+	private final long beanMetaDataCacheMaxSize;
+
+	private final long beanMetaDataCacheExpireAfterAccess;
+
 	public ValidatorFactoryImpl(ConfigurationState configurationState) {
 		ClassLoader externalClassLoader = determineExternalClassLoader( configurationState );
 
@@ -235,6 +241,9 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 		this.processedBeansTrackingVoter = ( hibernateSpecificConfig != null && hibernateSpecificConfig.getProcessedBeansTrackingVoter() != null )
 				? hibernateSpecificConfig.getProcessedBeansTrackingVoter()
 				: new DefaultProcessedBeansTrackingVoter();
+
+		this.beanMetaDataCacheMaxSize = determineBeanMetaDataCacheMaxSize( hibernateSpecificConfig, properties );
+		this.beanMetaDataCacheExpireAfterAccess = determineBeanMetaDataCacheExpireAfterAccess( hibernateSpecificConfig, properties );
 
 		if ( LOG.isDebugEnabled() ) {
 			logValidatorFactoryScopedConfiguration( validatorFactoryScopedContext );
@@ -360,7 +369,9 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 						validationOrderGenerator,
 						buildMetaDataProviders(),
 						methodValidationConfiguration,
-						processedBeansTrackingVoter
+						processedBeansTrackingVoter,
+						beanMetaDataCacheMaxSize,
+						beanMetaDataCacheExpireAfterAccess
 				)
 		);
 

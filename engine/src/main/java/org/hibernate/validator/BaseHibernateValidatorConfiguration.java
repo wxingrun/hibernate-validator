@@ -180,6 +180,24 @@ public interface BaseHibernateValidatorConfiguration<S extends BaseHibernateVali
 	String FAIL_FAST_ON_PROPERTY_VIOLATION = "hibernate.validator.fail_fast_on_property_violation";
 
 	/**
+	 * Property for configuring the maximum size of the bean meta data cache.
+	 * Accepts an integer value. Defaults to {@code -1} (unbounded).
+	 *
+	 * @since 9.2
+	 */
+	@Incubating
+	String BEAN_META_DATA_CACHE_MAX_SIZE = "hibernate.validator.bean_meta_data_cache_max_size";
+
+	/**
+	 * Property for configuring the expire after access duration (in minutes) of the bean meta data cache.
+	 * Accepts a long value representing minutes. Defaults to {@code -1} (no expiration).
+	 *
+	 * @since 9.2
+	 */
+	@Incubating
+	String BEAN_META_DATA_CACHE_EXPIRE_AFTER_ACCESS = "hibernate.validator.bean_meta_data_cache_expire_after_access";
+
+	/**
 	 * <p>
 	 * Returns the {@link ResourceBundleLocator} used by the
 	 * {@link Configuration#getDefaultMessageInterpolator() default message
@@ -522,4 +540,30 @@ public interface BaseHibernateValidatorConfiguration<S extends BaseHibernateVali
 	 */
 	@Incubating
 	S processedBeansTrackingVoter(ProcessedBeansTrackingVoter processedBeanTrackingVoter);
+
+	/**
+	 * Allows configuring the maximum size of the bean meta data cache.
+	 * When the maximum size is exceeded, the least recently used entries will be evicted.
+	 * <p>
+	 * By default, the cache is unbounded ({@code -1}).
+	 *
+	 * @param maxSize the maximum number of entries the cache may contain, or {@code -1} for unbounded
+	 * @return {@code this} following the chaining method pattern
+	 * @since 9.2
+	 */
+	@Incubating
+	S beanMetaDataCacheMaxSize(long maxSize);
+
+	/**
+	 * Allows configuring the expire after access duration of the bean meta data cache.
+	 * Entries that have not been accessed for the specified duration will be evicted.
+	 * <p>
+	 * By default, entries do not expire ({@code -1}).
+	 *
+	 * @param expireAfterAccessInMinutes the duration in minutes after which entries expire, or {@code -1} for no expiration
+	 * @return {@code this} following the chaining method pattern
+	 * @since 9.2
+	 */
+	@Incubating
+	S beanMetaDataCacheExpireAfterAccess(long expireAfterAccessInMinutes);
 }

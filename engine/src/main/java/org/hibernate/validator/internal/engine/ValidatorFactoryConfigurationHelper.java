@@ -457,6 +457,36 @@ final class ValidatorFactoryConfigurationHelper {
 		LOG.logValidatorFactoryScopedConfiguration( context.getScriptEvaluatorFactory().getClass(), "script evaluator factory" );
 	}
 
+	static long determineBeanMetaDataCacheMaxSize(AbstractConfigurationImpl<?> hibernateSpecificConfig, Map<String, String> properties) {
+		long programmaticValue = hibernateSpecificConfig != null ? hibernateSpecificConfig.getBeanMetaDataCacheMaxSize() : -1;
+
+		String propertyStringValue = properties.get( HibernateValidatorConfiguration.BEAN_META_DATA_CACHE_MAX_SIZE );
+		if ( propertyStringValue != null ) {
+			long propertyValue = Long.parseLong( propertyStringValue );
+			if ( programmaticValue != -1 && programmaticValue != propertyValue ) {
+				LOG.debug( "Overriding programmatic bean meta data cache max size " + programmaticValue + " with property value " + propertyValue );
+			}
+			return propertyValue;
+		}
+
+		return programmaticValue;
+	}
+
+	static long determineBeanMetaDataCacheExpireAfterAccess(AbstractConfigurationImpl<?> hibernateSpecificConfig, Map<String, String> properties) {
+		long programmaticValue = hibernateSpecificConfig != null ? hibernateSpecificConfig.getBeanMetaDataCacheExpireAfterAccess() : -1;
+
+		String propertyStringValue = properties.get( HibernateValidatorConfiguration.BEAN_META_DATA_CACHE_EXPIRE_AFTER_ACCESS );
+		if ( propertyStringValue != null ) {
+			long propertyValue = Long.parseLong( propertyStringValue );
+			if ( programmaticValue != -1 && programmaticValue != propertyValue ) {
+				LOG.debug( "Overriding programmatic bean meta data cache expire after access " + programmaticValue + " with property value " + propertyValue );
+			}
+			return propertyValue;
+		}
+
+		return programmaticValue;
+	}
+
 	/**
 	 * The one and only {@link ConstraintMappingContributor.ConstraintMappingBuilder} implementation.
 	 */

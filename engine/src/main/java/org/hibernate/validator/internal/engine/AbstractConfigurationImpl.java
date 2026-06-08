@@ -134,6 +134,8 @@ public abstract class AbstractConfigurationImpl<T extends BaseHibernateValidator
 	private ExpressionLanguageFeatureLevel customViolationExpressionLanguageFeatureLevel;
 	private ProcessedBeansTrackingVoter processedBeansTrackingVoter;
 	private boolean showValidatedValuesInTraceLogs;
+	private long beanMetaDataCacheMaxSize = -1;
+	private long beanMetaDataCacheExpireAfterAccess = -1;
 
 	protected AbstractConfigurationImpl(BootstrapState state) {
 		this();
@@ -697,6 +699,26 @@ public abstract class AbstractConfigurationImpl<T extends BaseHibernateValidator
 
 	public final boolean getShowValidatedValuesInTraceLogs() {
 		return this.showValidatedValuesInTraceLogs;
+	}
+
+	@Override
+	public T beanMetaDataCacheMaxSize(long maxSize) {
+		this.beanMetaDataCacheMaxSize = maxSize;
+		return thisAsT();
+	}
+
+	public long getBeanMetaDataCacheMaxSize() {
+		return beanMetaDataCacheMaxSize;
+	}
+
+	@Override
+	public T beanMetaDataCacheExpireAfterAccess(long expireAfterAccessInMinutes) {
+		this.beanMetaDataCacheExpireAfterAccess = expireAfterAccessInMinutes;
+		return thisAsT();
+	}
+
+	public long getBeanMetaDataCacheExpireAfterAccess() {
+		return beanMetaDataCacheExpireAfterAccess;
 	}
 
 	@Override

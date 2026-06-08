@@ -64,6 +64,11 @@
             <groupId>com.fasterxml</groupId>
             <artifactId>classmate</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>${version.com.github.ben-manes.caffeine}</version>
+        </dependency>
 
         <!--
         Provided dependencies
