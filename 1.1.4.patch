@@ -1,0 +1,12 @@
+diff --git a/pom.xml b/pom.xml
+index 69df9332b..6f63dab85 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -93,6 +93,7 @@
+         <module>bom</module>
+         <module>test-utils</module>
+         <module>engine</module>
++        <module>hibernate-validator-china-constraints</module>
+         <module>tck-runner</module>
+         <module>annotation-processor</module>
+         <module>cdi</module>

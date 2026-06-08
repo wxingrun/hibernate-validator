@@ -93,6 +93,7 @@
         <module>bom</module>
         <module>test-utils</module>
         <module>engine</module>
+        <module>hibernate-validator-china-constraints</module>
         <module>tck-runner</module>
         <module>annotation-processor</module>
         <module>cdi</module>
