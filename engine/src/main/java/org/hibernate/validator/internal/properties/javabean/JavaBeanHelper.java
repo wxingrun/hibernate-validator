@@ -10,6 +10,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.RecordComponent;
 import java.util.Optional;
 
 import org.hibernate.validator.internal.properties.Constrainable;
@@ -21,15 +22,10 @@ import org.hibernate.validator.internal.util.actions.GetMethodFromGetterNameCand
 import org.hibernate.validator.spi.nodenameprovider.JavaBeanProperty;
 import org.hibernate.validator.spi.nodenameprovider.PropertyNodeNameProvider;
 import org.hibernate.validator.spi.nodenameprovider.PropertyNodeNameProviderContext;
+import org.hibernate.validator.spi.nodenameprovider.RecordComponentProperty;
 import org.hibernate.validator.spi.properties.ConstrainableExecutable;
 import org.hibernate.validator.spi.properties.GetterPropertySelectionStrategy;
 
-/**
- * Helper class that gives ability to find {@link Constrainable} versions
- * of JavaBean's fields, getters, constructors and methods.
- *
- * @author Marko Bekhta
- */
 public class JavaBeanHelper implements PropertyNodeNameProviderContext {
 
 	private final GetterPropertySelectionStrategy getterPropertySelectionStrategy;
@@ -78,8 +74,7 @@ public class JavaBeanHelper implements PropertyNodeNameProviderContext {
 			return Optional.empty();
 		}
 		else {
-			return Optional.of( new JavaBeanGetter( declaringClass, getter, property, propertyNodeNameProvider.getName(
-					new JavaBeanPropertyImpl( declaringClass, property, getter.getName() ), this ) ) );
+			return Optional.of( new JavaBeanGetter( declaringClass, getter, property, resolvePropertyNodeName( declaringClass, property, getter.getName() ) ) );
 		}
 	}
 
@@ -120,15 +115,39 @@ public class JavaBeanHelper implements PropertyNodeNameProviderContext {
 
 		Optional<String> correspondingProperty = getterPropertySelectionStrategy.getProperty( executable );
 		if ( correspondingProperty.isPresent() ) {
-			return new JavaBeanGetter( declaringClass, method, correspondingProperty.get(), propertyNodeNameProvider.getName(
-					new JavaBeanPropertyImpl( declaringClass, correspondingProperty.get(), method.getName() ), this ) );
+			return new JavaBeanGetter( declaringClass, method, correspondingProperty.get(), resolvePropertyNodeName( declaringClass, correspondingProperty.get(), method.getName() ) );
 		}
 
 		return new JavaBeanMethod( method );
 	}
 
 	public JavaBeanField field(Field field) {
-		return new JavaBeanField( field, propertyNodeNameProvider.getName( new JavaBeanPropertyImpl( field.getDeclaringClass(), field.getName(), field.getName() ), this ) );
+		return new JavaBeanField( field, resolvePropertyNodeName( field.getDeclaringClass(), field.getName(), field.getName() ) );
+	}
+
+	private String resolvePropertyNodeName(Class<?> declaringClass, String propertyName, String memberName) {
+		return propertyNodeNameProvider.getName( createPropertyMetadata( declaringClass, propertyName, memberName ), this );
+	}
+
+	private org.hibernate.validator.spi.nodenameprovider.Property createPropertyMetadata(Class<?> declaringClass, String propertyName, String memberName) {
+		if ( isRecordComponent( declaringClass, propertyName ) ) {
+			return new RecordComponentPropertyImpl( declaringClass, propertyName, memberName );
+		}
+		return new JavaBeanPropertyImpl( declaringClass, propertyName, memberName );
+	}
+
+	private static boolean isRecordComponent(Class<?> declaringClass, String propertyName) {
+		if ( !declaringClass.isRecord() ) {
+			return false;
+		}
+
+		for ( RecordComponent recordComponent : declaringClass.getRecordComponents() ) {
+			if ( recordComponent.getName().equals( propertyName ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private static class JavaBeanConstrainableExecutable implements ConstrainableExecutable {
@@ -161,6 +180,33 @@ public class JavaBeanHelper implements PropertyNodeNameProviderContext {
 		private final String memberName;
 
 		private JavaBeanPropertyImpl(Class<?> declaringClass, String name, String memberName) {
+			this.declaringClass = declaringClass;
+			this.name = name;
+			this.memberName = memberName;
+		}
+
+		@Override
+		public Class<?> getDeclaringClass() {
+			return declaringClass;
+		}
+
+		@Override
+		public String getMemberName() {
+			return memberName;
+		}
+
+		@Override
+		public String getName() {
+			return name;
+		}
+	}
+
+	private static class RecordComponentPropertyImpl implements RecordComponentProperty, JavaBeanProperty {
+		private final Class<?> declaringClass;
+		private final String name;
+		private final String memberName;
+
+		private RecordComponentPropertyImpl(Class<?> declaringClass, String name, String memberName) {
 			this.declaringClass = declaringClass;
 			this.name = name;
 			this.memberName = memberName;

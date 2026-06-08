@@ -9,6 +9,7 @@ import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -19,12 +20,8 @@ import org.hibernate.validator.spi.nodenameprovider.JavaBeanProperty;
 import org.hibernate.validator.spi.nodenameprovider.Property;
 import org.hibernate.validator.spi.nodenameprovider.PropertyNodeNameProvider;
 import org.hibernate.validator.spi.nodenameprovider.PropertyNodeNameProviderContext;
+import org.hibernate.validator.spi.nodenameprovider.RecordComponentProperty;
 
-/**
- * An example of how a name can be resolved from an annotation
- *
- * @author Damir Alibegovic
- */
 class AnnotationPropertyNodeNameProvider implements PropertyNodeNameProvider, Serializable {
 	private static final String VALUE = "value";
 	private static final Log LOG = LoggerFactory.make( MethodHandles.lookup() );
@@ -43,6 +40,10 @@ class AnnotationPropertyNodeNameProvider implements PropertyNodeNameProvider, Se
 
 	@Override
 	public String getName(Property property, PropertyNodeNameProviderContext context) {
+		if ( property instanceof RecordComponentProperty recordComponentProperty ) {
+			return getRecordComponentPropertyName( recordComponentProperty );
+		}
+
 		if ( property instanceof JavaBeanProperty javaBeanProperty ) {
 			return getJavaBeanPropertyName( javaBeanProperty );
 		}
@@ -62,6 +63,18 @@ class AnnotationPropertyNodeNameProvider implements PropertyNodeNameProvider, Se
 		}
 	}
 
+	private String getRecordComponentPropertyName(RecordComponentProperty property) {
+		Optional<RecordComponent> recordComponent = getRecordComponent( property );
+
+		if ( recordComponent.isPresent() && recordComponent.get().isAnnotationPresent( annotationType ) ) {
+			return getAnnotationMemberValue( recordComponent.get(), annotationMemberName )
+					.orElse( getDefaultName( property ) );
+		}
+		else {
+			return getDefaultName( property );
+		}
+	}
+
 	private Optional<Field> getField(JavaBeanProperty property) {
 		return Arrays.stream( property.getDeclaringClass().getFields() )
 				.peek( field -> field.setAccessible( true ) )
@@ -69,8 +82,18 @@ class AnnotationPropertyNodeNameProvider implements PropertyNodeNameProvider, Se
 				.findFirst();
 	}
 
-	private Optional<String> getAnnotationMemberValue(Field field, String annotationMemberName) {
-		Annotation annotation = field.getAnnotation( annotationType );
+	private Optional<RecordComponent> getRecordComponent(RecordComponentProperty property) {
+		if ( !property.getDeclaringClass().isRecord() ) {
+			return Optional.empty();
+		}
+
+		return Arrays.stream( property.getDeclaringClass().getRecordComponents() )
+				.filter( recordComponent -> property.getName().equals( recordComponent.getName() ) )
+				.findFirst();
+	}
+
+	private Optional<String> getAnnotationMemberValue(AnnotatedElementWrapper annotatedElementWrapper, String annotationMemberName) {
+		Annotation annotation = annotatedElementWrapper.getAnnotation( annotationType );
 
 		try {
 			return Optional.of(
@@ -83,7 +106,45 @@ class AnnotationPropertyNodeNameProvider implements PropertyNodeNameProvider, Se
 		}
 	}
 
+	private Optional<String> getAnnotationMemberValue(Field field, String annotationMemberName) {
+		return getAnnotationMemberValue( new FieldWrapper( field ), annotationMemberName );
+	}
+
+	private Optional<String> getAnnotationMemberValue(RecordComponent recordComponent, String annotationMemberName) {
+		return getAnnotationMemberValue( new RecordComponentWrapper( recordComponent ), annotationMemberName );
+	}
+
 	private String getDefaultName(Property property) {
 		return property.getName();
+	}
+
+	private interface AnnotatedElementWrapper {
+		Annotation getAnnotation(Class<? extends Annotation> annotationType);
+	}
+
+	private static class FieldWrapper implements AnnotatedElementWrapper {
+		private final Field field;
+
+		private FieldWrapper(Field field) {
+			this.field = field;
+		}
+
+		@Override
+		public Annotation getAnnotation(Class<? extends Annotation> annotationType) {
+			return field.getAnnotation( annotationType );
+		}
+	}
+
+	private static class RecordComponentWrapper implements AnnotatedElementWrapper {
+		private final RecordComponent recordComponent;
+
+		private RecordComponentWrapper(RecordComponent recordComponent) {
+			this.recordComponent = recordComponent;
+		}
+
+		@Override
+		public Annotation getAnnotation(Class<? extends Annotation> annotationType) {
+			return recordComponent.getAnnotation( annotationType );
+		}
 	}
 }

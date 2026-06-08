@@ -5,6 +5,7 @@
 package org.hibernate.validator.test.spi.nodenameprovider;
 
 import static org.hibernate.validator.testutil.ConstraintViolationAssert.assertThat;
+import static org.hibernate.validator.testutil.ConstraintViolationAssert.pathWith;
 import static org.hibernate.validator.testutil.ConstraintViolationAssert.violationOf;
 import static org.testng.Assert.assertEquals;
 
@@ -22,6 +23,7 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import org.hibernate.validator.HibernateValidator;
@@ -33,9 +35,6 @@ import org.hibernate.validator.testutil.TestForIssue;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-/**
- * @author Damir Alibegovic
- */
 @TestForIssue(jiraKey = "HV-823")
 public class PropertyNodeNameProviderTest {
 	private static final String INVALID_BRAND_NAME = "BMW";
@@ -105,6 +104,28 @@ public class PropertyNodeNameProviderTest {
 
 		assertEquals( violation.getPropertyPath().toString(), "components[engine].horse_power" );
 
+	}
+
+	@Test
+	public void nameIsResolvedFromRecordComponentsInNestedCascadedValidation() {
+		ValidatorFactory validatorFactory = Validation.byProvider( HibernateValidator.class )
+				.configure()
+				.propertyNodeNameProvider( new AnnotationPropertyNodeNameProvider( RecordPropertyName.class ) )
+				.buildValidatorFactory();
+		Validator recordValidator = validatorFactory.getValidator();
+
+		Set<ConstraintViolation<RecordCar>> violations = recordValidator.validate(
+				new RecordCar( new RecordEngine( new RecordCylinder( "" ) ) )
+		);
+		ConstraintViolation<RecordCar> violation = violations.iterator().next();
+
+		assertEquals( violation.getPropertyPath().toString(), "outer.inner.field" );
+		assertThat( violations ).containsOnlyViolations(
+				violationOf( NotBlank.class ).withPropertyPath( pathWith()
+						.property( "outer" )
+						.property( "inner" )
+						.property( "field" ) )
+		);
 	}
 
 	@Test
@@ -212,6 +233,12 @@ public class PropertyNodeNameProviderTest {
 		String value();
 	}
 
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ ElementType.RECORD_COMPONENT })
+	public @interface RecordPropertyName {
+		String value();
+	}
+
 	private class Car {
 		@PropertyName("components")
 		public final Map<String, @Valid Object> comps = new HashMap<>();
@@ -274,5 +301,14 @@ public class PropertyNodeNameProviderTest {
 		ProgrammaticCar(String brand) {
 			this.brand = brand;
 		}
+	}
+
+	private record RecordCar(@Valid @RecordPropertyName("outer") RecordEngine outerRecord) {
+	}
+
+	private record RecordEngine(@Valid @RecordPropertyName("inner") RecordCylinder innerRecord) {
+	}
+
+	private record RecordCylinder(@NotBlank String field) {
 	}
 }
