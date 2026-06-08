@@ -1,0 +1,97 @@
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/metadata/core/BuiltinConstraint.java b/engine/src/main/java/org/hibernate/validator/internal/metadata/core/BuiltinConstraint.java
+index be445497c..76ea6beff 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/metadata/core/BuiltinConstraint.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/metadata/core/BuiltinConstraint.java
+@@ -65,6 +65,7 @@ enum BuiltinConstraint {
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_NULL_OR_NOT_BLANK( "org.hibernate.validator.constraints.NullOrNotBlank" ),
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_NULL_OR_NOT_EMPTY( "org.hibernate.validator.constraints.NullOrNotEmpty" ),
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_EAN( "org.hibernate.validator.constraints.EAN", Arrays.asList( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_MOD10_CHECK ) ),
++	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_EMAIL( "org.hibernate.validator.constraints.Email" ),
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_PARAMETER_SCRIPT_ASSERT( "org.hibernate.validator.constraints.ParameterScriptAssert" ),
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_RANGE( "org.hibernate.validator.constraints.Range",
+ 			Arrays.asList( JAKARTA_VALIDATION_CONSTRAINTS_MIN, JAKARTA_VALIDATION_CONSTRAINTS_MAX ) ),
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/metadata/core/ConstraintHelper.java b/engine/src/main/java/org/hibernate/validator/internal/metadata/core/ConstraintHelper.java
+index cb6585b52..b482a6b8f 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/metadata/core/ConstraintHelper.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/metadata/core/ConstraintHelper.java
+@@ -34,6 +34,7 @@
+ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_CREDIT_CARD_NUMBER;
+ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_CURRENCY;
+ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_EAN;
++import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_EMAIL;
+ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_IP_ADDRESS;
+ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_ISBN;
+ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_KOR_KORRRN;
+@@ -109,6 +110,7 @@
+ import org.hibernate.validator.constraints.CreditCardNumber;
+ import org.hibernate.validator.constraints.Currency;
+ import org.hibernate.validator.constraints.EAN;
++import org.hibernate.validator.constraints.Email;
+ import org.hibernate.validator.constraints.ISBN;
+ import org.hibernate.validator.constraints.IpAddress;
+ import org.hibernate.validator.constraints.Length;
+@@ -356,6 +358,7 @@
+ import org.hibernate.validator.internal.constraintvalidators.hv.ScriptAssertValidator;
+ import org.hibernate.validator.internal.constraintvalidators.hv.URLValidator;
+ import org.hibernate.validator.internal.constraintvalidators.hv.UUIDValidator;
++import org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator;
+ import org.hibernate.validator.internal.constraintvalidators.hv.UniqueElementsValidator;
+ import org.hibernate.validator.internal.constraintvalidators.hv.br.CNPJValidator;
+ import org.hibernate.validator.internal.constraintvalidators.hv.br.CPFValidator;
+@@ -774,6 +777,9 @@ protected Map<Class<? extends Annotation>, List<? extends ConstraintValidatorDes
+ 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_EAN ) ) {
+ 			putBuiltinConstraint( tmpConstraints, EAN.class, EANValidator.class );
+ 		}
++		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_EMAIL ) ) {
++			putBuiltinConstraint( tmpConstraints, Email.class, EmailValidator.class );
++		}
+ 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_IP_ADDRESS ) ) {
+ 			putBuiltinConstraint( tmpConstraints, IpAddress.class, IpAddressValidator.class );
+ 		}
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/util/DomainNameUtil.java b/engine/src/main/java/org/hibernate/validator/internal/util/DomainNameUtil.java
+index a05b45e94..f89ac1ec7 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/util/DomainNameUtil.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/util/DomainNameUtil.java
+@@ -62,6 +62,18 @@ public static boolean isValidEmailDomainAddress(String domain) {
+ 		return isValidDomainAddress( domain, EMAIL_DOMAIN_PATTERN );
+ 	}
+ 
++	/**
++	 * Checks whether the given domain part is a TLD-only domain (a single label without a dot).
++	 * For example, {@code com}, {@code org} are TLD-only domains.
++	 * IP addresses wrapped in brackets (e.g. {@code [123.12.2.11]}) are not considered TLD-only.
++	 *
++	 * @param domain the domain part of an email address
++	 * @return {@code true} if the domain is TLD-only, {@code false} otherwise
++	 */
++	public static boolean isTldOnlyDomain(String domain) {
++		return !domain.contains( "." ) && !domain.startsWith( "[" );
++	}
++
+ 	/**
+ 	 * Checks validity of a domain name.
+ 	 *
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
+index 98aef1f1d..d216fcc6a 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
+@@ -24,6 +24,7 @@ jakarta.validation.constraints.Size.message            = size must be between {m
+ org.hibernate.validator.constraints.CreditCardNumber.message        = invalid credit card number
+ org.hibernate.validator.constraints.Currency.message                = invalid currency (must be one of {value})
+ org.hibernate.validator.constraints.EAN.message                     = invalid {type} barcode
++org.hibernate.validator.constraints.Email.message                   = must be a well-formed email address
+ org.hibernate.validator.constraints.IpAddress.message               = invalid IP address
+ org.hibernate.validator.constraints.ISBN.message                    = invalid ISBN
+ org.hibernate.validator.constraints.Length.message                  = length must be between {min} and {max}
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
+index 5af897f5c..fe2158b9f 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
+@@ -24,6 +24,7 @@ jakarta.validation.constraints.Size.message            = \u4e2a\u6570\u5fc5\u987
+ org.hibernate.validator.constraints.CreditCardNumber.message        = \u4e0d\u5408\u6cd5\u7684\u4fe1\u7528\u5361\u53f7\u7801
+ org.hibernate.validator.constraints.Currency.message                = \u4e0d\u5408\u6cd5\u7684\u8d27\u5e01 (\u5fc5\u987b\u662f{value}\u5176\u4e2d\u4e4b\u4e00)
+ org.hibernate.validator.constraints.EAN.message                     = \u4e0d\u5408\u6cd5\u7684{type}\u6761\u5f62\u7801
++org.hibernate.validator.constraints.Email.message                   = \u4e0d\u662f\u4e00\u4e2a\u5408\u6cd5\u7684\u7535\u5b50\u90ae\u4ef6\u5730\u5740
+ org.hibernate.validator.constraints.Length.message                  = \u957f\u5ea6\u9700\u8981\u5728{min}\u548c{max}\u4e4b\u95f4
+ org.hibernate.validator.constraints.CodePointLength.message         = \u957f\u5ea6\u9700\u8981\u5728{min}\u548c{max}\u4e4b\u95f4
+ org.hibernate.validator.constraints.LuhnCheck.message               = ${validatedValue}\u7684\u6821\u9a8c\u7801\u4e0d\u5408\u6cd5, Luhn\u6a2110\u6821\u9a8c\u548c\u4e0d\u5339\u914d

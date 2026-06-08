@@ -63,6 +63,18 @@ public final class DomainNameUtil {
 	}
 
 	/**
+	 * Checks whether the given domain part is a TLD-only domain (a single label without a dot).
+	 * For example, {@code com}, {@code org} are TLD-only domains.
+	 * IP addresses wrapped in brackets (e.g. {@code [123.12.2.11]}) are not considered TLD-only.
+	 *
+	 * @param domain the domain part of an email address
+	 * @return {@code true} if the domain is TLD-only, {@code false} otherwise
+	 */
+	public static boolean isTldOnlyDomain(String domain) {
+		return !domain.contains( "." ) && !domain.startsWith( "[" );
+	}
+
+	/**
 	 * Checks validity of a domain name.
 	 *
 	 * @param domain the domain to check for validity
