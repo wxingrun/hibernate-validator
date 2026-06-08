@@ -1,0 +1,154 @@
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/metadata/core/BuiltinConstraint.java b/engine/src/main/java/org/hibernate/validator/internal/metadata/core/BuiltinConstraint.java
+index be445497c..76309f327 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/metadata/core/BuiltinConstraint.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/metadata/core/BuiltinConstraint.java
+@@ -86,7 +86,8 @@ enum BuiltinConstraint {
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_TIME_DURATION_MAX( "org.hibernate.validator.constraints.time.DurationMax" ),
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_TIME_DURATION_MIN( "org.hibernate.validator.constraints.time.DurationMin" ),
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_UUID( "org.hibernate.validator.constraints.UUID" ),
+-	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_BITCOIN_ADDRESS( "org.hibernate.validator.constraints.BitcoinAddress" );
++	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_BITCOIN_ADDRESS( "org.hibernate.validator.constraints.BitcoinAddress" ),
++	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_ID_CARD( "org.hibernate.validator.constraints.IdCard" );
+ 
+ 	private static final Map<String, Set<BuiltinConstraint>> CONSTRAINT_MAPPING;
+ 
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/metadata/core/ConstraintHelper.java b/engine/src/main/java/org/hibernate/validator/internal/metadata/core/ConstraintHelper.java
+index cb6585b52..764b18f6a 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/metadata/core/ConstraintHelper.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/metadata/core/ConstraintHelper.java
+@@ -53,6 +53,7 @@
+ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_SCRIPT_ASSERT;
+ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_TIME_DURATION_MAX;
+ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_TIME_DURATION_MIN;
++import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_ID_CARD;
+ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_UNIQUE_ELEMENTS;
+ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_URL;
+ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_UUID;
+@@ -123,6 +124,7 @@
+ import org.hibernate.validator.constraints.ScriptAssert;
+ import org.hibernate.validator.constraints.URL;
+ import org.hibernate.validator.constraints.UUID;
++import org.hibernate.validator.constraints.IdCard;
+ import org.hibernate.validator.constraints.UniqueElements;
+ import org.hibernate.validator.constraints.br.CNPJ;
+ import org.hibernate.validator.constraints.br.CPF;
+@@ -333,6 +335,7 @@
+ import org.hibernate.validator.internal.constraintvalidators.hv.CodePointLengthValidator;
+ import org.hibernate.validator.internal.constraintvalidators.hv.EANValidator;
+ import org.hibernate.validator.internal.constraintvalidators.hv.ISBNValidator;
++import org.hibernate.validator.internal.constraintvalidators.hv.IdCardValidator;
+ import org.hibernate.validator.internal.constraintvalidators.hv.IpAddressValidator;
+ import org.hibernate.validator.internal.constraintvalidators.hv.LengthValidator;
+ import org.hibernate.validator.internal.constraintvalidators.hv.LuhnCheckValidator;
+@@ -780,6 +783,9 @@ protected Map<Class<? extends Annotation>, List<? extends ConstraintValidatorDes
+ 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_ISBN ) ) {
+ 			putBuiltinConstraint( tmpConstraints, ISBN.class, ISBNValidator.class );
+ 		}
++		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_ID_CARD ) ) {
++			putBuiltinConstraint( tmpConstraints, IdCard.class, IdCardValidator.class );
++		}
+ 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_LENGTH ) ) {
+ 			putBuiltinConstraint( tmpConstraints, Length.class, LengthValidator.class );
+ 		}
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
+index 98aef1f1d..1e68dd9ec 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
+@@ -41,6 +41,8 @@ org.hibernate.validator.constraints.UniqueElements.message          = must only
+ org.hibernate.validator.constraints.URL.message                     = must be a valid URL
+ org.hibernate.validator.constraints.UUID.message                     = must be a valid UUID
+ 
++org.hibernate.validator.constraints.IdCard.message                 = invalid Chinese citizen identity card number
++
+ org.hibernate.validator.constraints.br.CNPJ.message                 = invalid Brazilian corporate taxpayer registry number (CNPJ)
+ org.hibernate.validator.constraints.br.CPF.message                  = invalid Brazilian individual taxpayer registry number (CPF)
+ org.hibernate.validator.constraints.br.TituloEleitoral.message      = invalid Brazilian Voter ID card number
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties
+index 0b8998145..7439bec96 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties
+@@ -36,6 +36,8 @@ org.hibernate.validator.constraints.ScriptAssert.message            = \u811a\u67
+ org.hibernate.validator.constraints.UniqueElements.message          = \u5fc5\u987b\u4ec5\u5305\u542b\u552f\u4e00\u5143\u7d20
+ org.hibernate.validator.constraints.URL.message                     = \u5fc5\u987b\u4e3a\u6709\u6548 URL
+ 
++org.hibernate.validator.constraints.IdCard.message                 = \u65e0\u6548\u7684\u4e2d\u56fd\u5c45\u6c11\u8eab\u4efd\u8bc1\u53f7\u7801
++
+ org.hibernate.validator.constraints.br.CNPJ.message                 = \u65e0\u6548\u5df4\u897f\u4f01\u4e1a\u7eb3\u7a0e\u4eba\u767b\u8bb0\u53f7 (CNPJ)
+ org.hibernate.validator.constraints.br.CPF.message                  = \u65e0\u6548\u5df4\u897f\u4e2a\u4eba\u7eb3\u7a0e\u4eba\u767b\u8bb0\u53f7 (CPF)
+ org.hibernate.validator.constraints.br.TituloEleitoral.message      = \u65e0\u6548\u5df4\u897f\u6295\u7968\u4eba\u8eab\u4efd\u8bc1\u53f7
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
+index 5af897f5c..b5d641f62 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
+@@ -34,5 +34,7 @@ org.hibernate.validator.constraints.Range.message                   = \u9700\u89
+ org.hibernate.validator.constraints.ScriptAssert.message            = \u6267\u884c\u811a\u672c\u8868\u8fbe\u5f0f"{script}"\u6ca1\u6709\u8fd4\u56de\u671f\u671b\u7ed3\u679c
+ org.hibernate.validator.constraints.URL.message                     = \u9700\u8981\u662f\u4e00\u4e2a\u5408\u6cd5\u7684URL
+ 
++org.hibernate.validator.constraints.IdCard.message                 = \u65e0\u6548\u7684\u4e2d\u56fd\u5c45\u6c11\u8eab\u4efd\u8bc1\u53f7\u7801
++
+ org.hibernate.validator.constraints.time.DurationMax.message        = \u5fc5\u987b\u5c0f\u4e8e${inclusive == true ? '\u6216\u7b49\u4e8e' : ''}${days == 0 ? '' : days += '\u5929'}${hours == 0 ? '' : hours += '\u5c0f\u65f6'}${minutes == 0 ? '' : minutes += '\u5206\u949f'}${seconds == 0 ? '' : seconds += '\u79d2'}${millis == 0 ? '' : millis += '\u6beb\u79d2'}${nanos == 0 ? '' : nanos += '\u7eb3\u79d2'}${days == 0 && hours == 0 && minutes == 0 && seconds == 0 && millis == 0 && nanos == 0 ? ' 0' : ''}
+ org.hibernate.validator.constraints.time.DurationMin.message        = \u5fc5\u987b\u5927\u4e8e${inclusive == true ? '\u6216\u7b49\u4e8e' : ''}${days == 0 ? '' : days += '\u5929'}${hours == 0 ? '' : hours += '\u5c0f\u65f6'}${minutes == 0 ? '' : minutes += '\u5206\u949f'}${seconds == 0 ? '' : seconds += '\u79d2'}${millis == 0 ? '' : millis += '\u6beb\u79d2'}${nanos == 0 ? '' : nanos += '\u7eb3\u79d2'}${days == 0 && hours == 0 && minutes == 0 && seconds == 0 && millis == 0 && nanos == 0 ? ' 0' : ''}
+diff --git a/engine/src/test/java/org/hibernate/validator/test/internal/constraintvalidators/MessagePropertiesTest.java b/engine/src/test/java/org/hibernate/validator/test/internal/constraintvalidators/MessagePropertiesTest.java
+index 960f01b25..5ffc800d7 100644
+--- a/engine/src/test/java/org/hibernate/validator/test/internal/constraintvalidators/MessagePropertiesTest.java
++++ b/engine/src/test/java/org/hibernate/validator/test/internal/constraintvalidators/MessagePropertiesTest.java
+@@ -50,6 +50,7 @@
+ import org.hibernate.validator.constraints.Currency;
+ import org.hibernate.validator.constraints.EAN;
+ import org.hibernate.validator.constraints.ISBN;
++import org.hibernate.validator.constraints.IdCard;
+ import org.hibernate.validator.constraints.Length;
+ import org.hibernate.validator.constraints.LuhnCheck;
+ import org.hibernate.validator.constraints.Mod10Check;
+@@ -173,7 +174,8 @@ public void testMessageProperties() throws NoSuchMethodException, SecurityExcept
+ 							violationOf( DurationMax.class ),
+ 							violationOf( DurationMin.class ),
+ 							violationOf( ScriptAssert.class ),
+-							violationOf( UUID.class )
++							violationOf( UUID.class ),
++							violationOf( IdCard.class )
+ 					);
+ 
+ 			collectInvalidMessages( locale, invalidMessages, violations );
+@@ -352,6 +354,9 @@ private static class Bean {
+ 		@UUID
+ 		private String uuid = "invalid";
+ 
++		@IdCard
++		private String idCard = "invalid";
++
+ 		@SuppressWarnings("unused")
+ 		private boolean scriptAssert = false;
+ 	}
+diff --git a/engine/src/test/java/org/hibernate/validator/test/internal/constraintvalidators/PredefinedScopeAllConstraintsTest.java b/engine/src/test/java/org/hibernate/validator/test/internal/constraintvalidators/PredefinedScopeAllConstraintsTest.java
+index 7e35bc1ea..982603a7a 100644
+--- a/engine/src/test/java/org/hibernate/validator/test/internal/constraintvalidators/PredefinedScopeAllConstraintsTest.java
++++ b/engine/src/test/java/org/hibernate/validator/test/internal/constraintvalidators/PredefinedScopeAllConstraintsTest.java
+@@ -49,6 +49,7 @@
+ import org.hibernate.validator.constraints.Currency;
+ import org.hibernate.validator.constraints.EAN;
+ import org.hibernate.validator.constraints.ISBN;
++import org.hibernate.validator.constraints.IdCard;
+ import org.hibernate.validator.constraints.Length;
+ import org.hibernate.validator.constraints.LuhnCheck;
+ import org.hibernate.validator.constraints.Mod10Check;
+@@ -133,6 +134,7 @@ public void testConstraints() throws NoSuchMethodException, SecurityException {
+ 		testConstraint( DurationMin.class, new DurationMinBean() );
+ 		testConstraint( ScriptAssert.class, new ScriptAssertBean() );
+ 		testConstraint( UUID.class, new UUIDBean() );
++		testConstraint( IdCard.class, new IdCardBean() );
+ 
+ 		Set<ConstraintViolation<ParameterScriptAssertBean>> parameterScriptAssertBeanViolations = getValidator( ParameterScriptAssert.class,
+ 				ParameterScriptAssertBean.class ).forExecutables().validateParameters(
+@@ -461,4 +463,11 @@ private static class UUIDBean {
+ 
+ 	}
+ 
++	private static class IdCardBean {
++
++		@IdCard
++		private String idCard = "invalid";
++
++	}
++
+ }

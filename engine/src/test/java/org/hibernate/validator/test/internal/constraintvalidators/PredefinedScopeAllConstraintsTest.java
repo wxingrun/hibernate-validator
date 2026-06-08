@@ -49,6 +49,7 @@ import org.hibernate.validator.constraints.CreditCardNumber;
 import org.hibernate.validator.constraints.Currency;
 import org.hibernate.validator.constraints.EAN;
 import org.hibernate.validator.constraints.ISBN;
+import org.hibernate.validator.constraints.IdCard;
 import org.hibernate.validator.constraints.Length;
 import org.hibernate.validator.constraints.LuhnCheck;
 import org.hibernate.validator.constraints.Mod10Check;
@@ -133,6 +134,7 @@ public class PredefinedScopeAllConstraintsTest {
 		testConstraint( DurationMin.class, new DurationMinBean() );
 		testConstraint( ScriptAssert.class, new ScriptAssertBean() );
 		testConstraint( UUID.class, new UUIDBean() );
+		testConstraint( IdCard.class, new IdCardBean() );
 
 		Set<ConstraintViolation<ParameterScriptAssertBean>> parameterScriptAssertBeanViolations = getValidator( ParameterScriptAssert.class,
 				ParameterScriptAssertBean.class ).forExecutables().validateParameters(
@@ -458,6 +460,13 @@ public class PredefinedScopeAllConstraintsTest {
 
 		@UUID
 		private String uuid = "invalid";
+
+	}
+
+	private static class IdCardBean {
+
+		@IdCard
+		private String idCard = "invalid";
 
 	}
 

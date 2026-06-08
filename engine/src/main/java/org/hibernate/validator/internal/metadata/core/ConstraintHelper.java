@@ -53,6 +53,7 @@ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.O
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_SCRIPT_ASSERT;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_TIME_DURATION_MAX;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_TIME_DURATION_MIN;
+import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_ID_CARD;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_UNIQUE_ELEMENTS;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_URL;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_UUID;
@@ -123,6 +124,7 @@ import org.hibernate.validator.constraints.Range;
 import org.hibernate.validator.constraints.ScriptAssert;
 import org.hibernate.validator.constraints.URL;
 import org.hibernate.validator.constraints.UUID;
+import org.hibernate.validator.constraints.IdCard;
 import org.hibernate.validator.constraints.UniqueElements;
 import org.hibernate.validator.constraints.br.CNPJ;
 import org.hibernate.validator.constraints.br.CPF;
@@ -333,6 +335,7 @@ import org.hibernate.validator.internal.constraintvalidators.hv.BitcoinAddressVa
 import org.hibernate.validator.internal.constraintvalidators.hv.CodePointLengthValidator;
 import org.hibernate.validator.internal.constraintvalidators.hv.EANValidator;
 import org.hibernate.validator.internal.constraintvalidators.hv.ISBNValidator;
+import org.hibernate.validator.internal.constraintvalidators.hv.IdCardValidator;
 import org.hibernate.validator.internal.constraintvalidators.hv.IpAddressValidator;
 import org.hibernate.validator.internal.constraintvalidators.hv.LengthValidator;
 import org.hibernate.validator.internal.constraintvalidators.hv.LuhnCheckValidator;
@@ -779,6 +782,9 @@ public abstract class ConstraintHelper {
 		}
 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_ISBN ) ) {
 			putBuiltinConstraint( tmpConstraints, ISBN.class, ISBNValidator.class );
+		}
+		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_ID_CARD ) ) {
+			putBuiltinConstraint( tmpConstraints, IdCard.class, IdCardValidator.class );
 		}
 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_LENGTH ) ) {
 			putBuiltinConstraint( tmpConstraints, Length.class, LengthValidator.class );
