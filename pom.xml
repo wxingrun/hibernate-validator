@@ -1462,11 +1462,9 @@
                             </importOrder>
                             <trimTrailingWhitespace/>
                             <endWithNewline/>
-                            <eclipse>
-                                <!-- optional version of Eclipse Formatter -->
-                                <!-- <version>4.26</version> -->
-                                <file>hibernate_validator_style.xml</file>
-                            </eclipse>
+                            <googleJavaFormat>
+                                <version>1.23.0</version>
+                            </googleJavaFormat>
                             <removeUnusedImports>
                                 <!-- default one fails to process the classes -->
                                 <engine>cleanthat-javaparser-unnecessaryimport</engine>
