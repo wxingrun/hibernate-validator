@@ -109,6 +109,7 @@ import org.hibernate.validator.constraints.ConstraintComposition;
 import org.hibernate.validator.constraints.CreditCardNumber;
 import org.hibernate.validator.constraints.Currency;
 import org.hibernate.validator.constraints.EAN;
+import org.hibernate.validator.constraints.Email;
 import org.hibernate.validator.constraints.ISBN;
 import org.hibernate.validator.constraints.IpAddress;
 import org.hibernate.validator.constraints.Length;
@@ -849,6 +850,9 @@ public abstract class ConstraintHelper {
 		}
 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_URL ) ) {
 			putBuiltinConstraint( tmpConstraints, URL.class, URLValidator.class );
+		}
+		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_EMAIL ) ) {
+			putBuiltinConstraint( tmpConstraints, Email.class, org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator.class );
 		}
 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_UUID ) ) {
 			putBuiltinConstraint( tmpConstraints, UUID.class, UUIDValidator.class );

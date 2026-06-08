@@ -59,6 +59,7 @@ enum BuiltinConstraint {
 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_LUHN_CHECK( "org.hibernate.validator.constraints.LuhnCheck" ),
 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_CREDIT_CARD_NUMBER( "org.hibernate.validator.constraints.CreditCardNumber",
 			Arrays.asList( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_LUHN_CHECK ) ),
+	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_EMAIL( "org.hibernate.validator.constraints.Email" ),
 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_MOD10_CHECK( "org.hibernate.validator.constraints.Mod10Check" ),
 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_MOD11_CHECK( "org.hibernate.validator.constraints.Mod11Check" ),
 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_NORMALIZED( "org.hibernate.validator.constraints.Normalized" ),

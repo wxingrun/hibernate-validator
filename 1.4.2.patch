@@ -1,0 +1,70 @@
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/metadata/core/BuiltinConstraint.java b/engine/src/main/java/org/hibernate/validator/internal/metadata/core/BuiltinConstraint.java
+index be445497c..093322b6b 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/metadata/core/BuiltinConstraint.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/metadata/core/BuiltinConstraint.java
+@@ -59,6 +59,7 @@ enum BuiltinConstraint {
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_LUHN_CHECK( "org.hibernate.validator.constraints.LuhnCheck" ),
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_CREDIT_CARD_NUMBER( "org.hibernate.validator.constraints.CreditCardNumber",
+ 			Arrays.asList( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_LUHN_CHECK ) ),
++	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_EMAIL( "org.hibernate.validator.constraints.Email" ),
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_MOD10_CHECK( "org.hibernate.validator.constraints.Mod10Check" ),
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_MOD11_CHECK( "org.hibernate.validator.constraints.Mod11Check" ),
+ 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_NORMALIZED( "org.hibernate.validator.constraints.Normalized" ),
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/metadata/core/ConstraintHelper.java b/engine/src/main/java/org/hibernate/validator/internal/metadata/core/ConstraintHelper.java
+index cb6585b52..1d5f60b3f 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/metadata/core/ConstraintHelper.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/metadata/core/ConstraintHelper.java
+@@ -109,6 +109,7 @@
+ import org.hibernate.validator.constraints.CreditCardNumber;
+ import org.hibernate.validator.constraints.Currency;
+ import org.hibernate.validator.constraints.EAN;
++import org.hibernate.validator.constraints.Email;
+ import org.hibernate.validator.constraints.ISBN;
+ import org.hibernate.validator.constraints.IpAddress;
+ import org.hibernate.validator.constraints.Length;
+@@ -850,6 +851,9 @@ protected Map<Class<? extends Annotation>, List<? extends ConstraintValidatorDes
+ 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_URL ) ) {
+ 			putBuiltinConstraint( tmpConstraints, URL.class, URLValidator.class );
+ 		}
++		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_EMAIL ) ) {
++			putBuiltinConstraint( tmpConstraints, Email.class, org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator.class );
++		}
+ 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_UUID ) ) {
+ 			putBuiltinConstraint( tmpConstraints, UUID.class, UUIDValidator.class );
+ 		}
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
+index 98aef1f1d..706283b95 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
+@@ -4,6 +4,7 @@ jakarta.validation.constraints.DecimalMax.message      = must be less than ${inc
+ jakarta.validation.constraints.DecimalMin.message      = must be greater than ${inclusive == true ? 'or equal to ' : ''}{value}
+ jakarta.validation.constraints.Digits.message          = numeric value out of bounds (<{integer} digits>.<{fraction} digits> expected)
+ jakarta.validation.constraints.Email.message           = must be a well-formed email address
++org.hibernate.validator.constraints.Email.message      = must be a well-formed email address
+ jakarta.validation.constraints.Future.message          = must be a future date
+ jakarta.validation.constraints.FutureOrPresent.message = must be a date in the present or in the future
+ jakarta.validation.constraints.Max.message             = must be less than or equal to {value}
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties
+index 0b8998145..23e87b4eb 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties
+@@ -4,6 +4,7 @@ jakarta.validation.constraints.DecimalMax.message      = \u5fc5\u987b\u5c0f\u4e8
+ jakarta.validation.constraints.DecimalMin.message      = \u5fc5\u987b\u5927\u4e8e ${inclusive == true ? 'or equal to ' : ''}{value}
+ jakarta.validation.constraints.Digits.message          = \u6570\u5b57\u503c\u8d85\u51fa\u4e86\u8fb9\u754c\uff08\u671f\u671b <{integer} digits>.<{fraction} digits>\uff09
+ jakarta.validation.constraints.Email.message           = \u5fc5\u987b\u4e3a\u683c\u5f0f\u89c4\u8303\u7684\u7535\u5b50\u90ae\u4ef6\u5730\u5740
++org.hibernate.validator.constraints.Email.message      = \u5fc5\u987b\u4e3a\u683c\u5f0f\u89c4\u8303\u7684\u7535\u5b50\u90ae\u4ef6\u5730\u5740
+ jakarta.validation.constraints.Future.message          = \u5fc5\u987b\u662f\u672a\u6765\u7684\u65e5\u671f
+ jakarta.validation.constraints.FutureOrPresent.message = \u5fc5\u987b\u662f\u73b0\u5728\u6216\u5c06\u6765\u7684\u65e5\u671f
+ jakarta.validation.constraints.Max.message             = \u5fc5\u987b\u5c0f\u4e8e\u6216\u7b49\u4e8e {value}
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
+index 5af897f5c..3d7fe9fd4 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
+@@ -4,6 +4,7 @@ jakarta.validation.constraints.DecimalMax.message      = \u5FC5\u987B\u5C0F\u4E8
+ jakarta.validation.constraints.DecimalMin.message      = \u5FC5\u987B\u5927\u4E8E${inclusive == true ? '\u6216\u7B49\u4E8E' : ''}{value}
+ jakarta.validation.constraints.Digits.message          = \u6570\u5b57\u7684\u503c\u8d85\u51fa\u4e86\u5141\u8bb8\u8303\u56f4(\u53ea\u5141\u8bb8\u5728{integer}\u4f4d\u6574\u6570\u548c{fraction}\u4f4d\u5c0f\u6570\u8303\u56f4\u5185)
+ jakarta.validation.constraints.Email.message           = \u4e0d\u662f\u4e00\u4e2a\u5408\u6cd5\u7684\u7535\u5b50\u90ae\u4ef6\u5730\u5740
++org.hibernate.validator.constraints.Email.message      = \u4e0d\u662f\u4e00\u4e2a\u5408\u6cd5\u7684\u7535\u5b50\u90ae\u4ef6\u5730\u5740
+ jakarta.validation.constraints.Future.message          = \u9700\u8981\u662f\u4e00\u4e2a\u5c06\u6765\u7684\u65f6\u95f4
+ jakarta.validation.constraints.FutureOrPresent.message = \u9700\u8981\u662f\u4e00\u4e2a\u5c06\u6765\u6216\u73b0\u5728\u7684\u65f6\u95f4
+ jakarta.validation.constraints.Max.message             = \u6700\u5927\u4e0d\u80fd\u8d85\u8fc7{value}
