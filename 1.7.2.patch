@@ -1,0 +1,71 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 1cd3afbff..8ccda0034 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -105,6 +105,11 @@ jobs:
+       - name: Set up Maven
+         run: ./mvnw -v
+ 
++      - name: Check code formatting
++        run: |
++          read -ra mvn_args <<< "$MAVEN_ARGS"
++          ./mvnw "${mvn_args[@]}" spotless:check
++
+       - name: Build code and run tests and basic checks (Standalone)
+         run: |
+           read -ra mvn_args <<< "$MAVEN_ARGS"
+diff --git a/pom.xml b/pom.xml
+index 69df9332b..4e4acb483 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -630,6 +630,11 @@
+             </resource>
+         </resources>
+         <plugins>
++            <plugin>
++                <groupId>com.diffplug.spotless</groupId>
++                <artifactId>spotless-maven-plugin</artifactId>
++                <version>${version.spotless-maven-plugin}</version>
++            </plugin>
+             <plugin>
+                 <artifactId>maven-enforcer-plugin</artifactId>
+                 <version>${version.enforcer.plugin}</version>
+@@ -1452,25 +1457,7 @@
+                                 <exclude>**/TypeHelperTest.java</exclude>
+                                 <exclude>**/ConcurrentReferenceHashMap.java</exclude>
+                             </excludes>
+-                            <indent>
+-                                <tabs>true</tabs>
+-                                <spacesPerTab>4</spacesPerTab>
+-                            </indent>
+-
+-                            <importOrder>
+-                                <file>hibernate_validator_style.importorder</file>
+-                            </importOrder>
+-                            <trimTrailingWhitespace/>
+-                            <endWithNewline/>
+-                            <eclipse>
+-                                <!-- optional version of Eclipse Formatter -->
+-                                <!-- <version>4.26</version> -->
+-                                <file>hibernate_validator_style.xml</file>
+-                            </eclipse>
+-                            <removeUnusedImports>
+-                                <!-- default one fails to process the classes -->
+-                                <engine>cleanthat-javaparser-unnecessaryimport</engine>
+-                            </removeUnusedImports>
++                            <googleJavaFormat />
+                             <licenseHeader>
+                                 <!--
+                                     NOTE: https://github.com/diffplug/spotless/issues/532
+@@ -1480,11 +1467,6 @@
+                                 <!-- Delimiter is a regex which identifies the "top" of the file i.e. all above it is considered a header -->
+                                 <delimiter>(\n)*^(\/\/tag.+|\/\/spotless.+|package .+;|module .+;|\/\/.+|\/\*\*.*)$</delimiter>
+                             </licenseHeader>
+-                            <replaceRegex>
+-                                <name>Remove wildcard imports</name>
+-                                <searchRegex>^import\s+[^\*\s]+\*;$</searchRegex>
+-                                <replacement>$1</replacement>
+-                            </replaceRegex>
+                         </java>
+                     </configuration>
+                     <dependencies>

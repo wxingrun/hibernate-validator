@@ -631,6 +631,11 @@
         </resources>
         <plugins>
             <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${version.spotless-maven-plugin}</version>
+            </plugin>
+            <plugin>
                 <artifactId>maven-enforcer-plugin</artifactId>
                 <version>${version.enforcer.plugin}</version>
                 <executions>
@@ -1452,25 +1457,7 @@
                                 <exclude>**/TypeHelperTest.java</exclude>
                                 <exclude>**/ConcurrentReferenceHashMap.java</exclude>
                             </excludes>
-                            <indent>
-                                <tabs>true</tabs>
-                                <spacesPerTab>4</spacesPerTab>
-                            </indent>
-
-                            <importOrder>
-                                <file>hibernate_validator_style.importorder</file>
-                            </importOrder>
-                            <trimTrailingWhitespace/>
-                            <endWithNewline/>
-                            <eclipse>
-                                <!-- optional version of Eclipse Formatter -->
-                                <!-- <version>4.26</version> -->
-                                <file>hibernate_validator_style.xml</file>
-                            </eclipse>
-                            <removeUnusedImports>
-                                <!-- default one fails to process the classes -->
-                                <engine>cleanthat-javaparser-unnecessaryimport</engine>
-                            </removeUnusedImports>
+                            <googleJavaFormat />
                             <licenseHeader>
                                 <!--
                                     NOTE: https://github.com/diffplug/spotless/issues/532
@@ -1480,11 +1467,6 @@
                                 <!-- Delimiter is a regex which identifies the "top" of the file i.e. all above it is considered a header -->
                                 <delimiter>(\n)*^(\/\/tag.+|\/\/spotless.+|package .+;|module .+;|\/\/.+|\/\*\*.*)$</delimiter>
                             </licenseHeader>
-                            <replaceRegex>
-                                <name>Remove wildcard imports</name>
-                                <searchRegex>^import\s+[^\*\s]+\*;$</searchRegex>
-                                <replacement>$1</replacement>
-                            </replaceRegex>
                         </java>
                     </configuration>
                     <dependencies>
