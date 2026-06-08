@@ -27,6 +27,7 @@ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.J
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.JAKARTA_VALIDATION_CONSTRAINTS_POSITIVE_OR_ZERO;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.JAKARTA_VALIDATION_CONSTRAINTS_SIZE;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_BITCOIN_ADDRESS;
+import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_ID_CARD;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_BR_CNPJ;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_BR_CPF;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_BR_TITULO_ELEITORAL;
@@ -107,6 +108,7 @@ import org.hibernate.validator.constraints.BitcoinAddress;
 import org.hibernate.validator.constraints.CodePointLength;
 import org.hibernate.validator.constraints.ConstraintComposition;
 import org.hibernate.validator.constraints.CreditCardNumber;
+import org.hibernate.validator.constraints.IdCard;
 import org.hibernate.validator.constraints.Currency;
 import org.hibernate.validator.constraints.EAN;
 import org.hibernate.validator.constraints.ISBN;
@@ -364,6 +366,7 @@ import org.hibernate.validator.internal.constraintvalidators.hv.pl.NIPValidator;
 import org.hibernate.validator.internal.constraintvalidators.hv.pl.PESELValidator;
 import org.hibernate.validator.internal.constraintvalidators.hv.pl.REGONValidator;
 import org.hibernate.validator.internal.constraintvalidators.hv.ru.INNValidator;
+import org.hibernate.validator.internal.constraintvalidators.hv.IdCardValidator;
 import org.hibernate.validator.internal.constraintvalidators.hv.time.DurationMaxValidator;
 import org.hibernate.validator.internal.constraintvalidators.hv.time.DurationMinValidator;
 import org.hibernate.validator.internal.engine.constraintvalidation.ConstraintValidatorDescriptor;
@@ -855,6 +858,9 @@ public abstract class ConstraintHelper {
 		}
 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_BITCOIN_ADDRESS ) ) {
 			putBuiltinConstraint( tmpConstraints, BitcoinAddress.class, BitcoinAddressValidator.class );
+		}
+		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_ID_CARD ) ) {
+			putBuiltinConstraint( tmpConstraints, IdCard.class, IdCardValidator.class );
 		}
 
 		return tmpConstraints;

@@ -86,7 +86,8 @@ enum BuiltinConstraint {
 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_TIME_DURATION_MAX( "org.hibernate.validator.constraints.time.DurationMax" ),
 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_TIME_DURATION_MIN( "org.hibernate.validator.constraints.time.DurationMin" ),
 	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_UUID( "org.hibernate.validator.constraints.UUID" ),
-	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_BITCOIN_ADDRESS( "org.hibernate.validator.constraints.BitcoinAddress" );
+	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_BITCOIN_ADDRESS( "org.hibernate.validator.constraints.BitcoinAddress" ),
+	ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_ID_CARD( "org.hibernate.validator.constraints.IdCard" );
 
 	private static final Map<String, Set<BuiltinConstraint>> CONSTRAINT_MAPPING;
 
