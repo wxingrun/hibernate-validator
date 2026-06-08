@@ -13,6 +13,7 @@ import org.hibernate.validator.internal.util.actions.GetClassLoader;
 import org.hibernate.validator.internal.util.logging.Log;
 import org.hibernate.validator.internal.util.logging.LoggerFactory;
 import org.hibernate.validator.spi.scripting.AbstractCachingScriptEvaluatorFactory;
+import org.hibernate.validator.spi.scripting.GraalJSScriptEvaluator;
 import org.hibernate.validator.spi.scripting.ScriptEngineScriptEvaluator;
 import org.hibernate.validator.spi.scripting.ScriptEvaluationException;
 import org.hibernate.validator.spi.scripting.ScriptEvaluator;
@@ -60,6 +61,10 @@ public class DefaultScriptEvaluatorFactory extends AbstractCachingScriptEvaluato
 
 		if ( engine == null ) {
 			throw LOG.getUnableToFindScriptEngineException( languageName );
+		}
+
+		if ( GraalJSScriptEvaluator.isGraalJSEngine( engine ) ) {
+			return new GraalJSScriptEvaluator( engine );
 		}
 
 		return new ScriptEngineScriptEvaluator( engine );
