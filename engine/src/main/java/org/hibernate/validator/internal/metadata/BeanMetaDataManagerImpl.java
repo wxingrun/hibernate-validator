@@ -5,13 +5,15 @@
 package org.hibernate.validator.internal.metadata;
 
 import static org.hibernate.validator.internal.util.CollectionHelper.newArrayList;
-import static org.hibernate.validator.internal.util.ConcurrentReferenceHashMap.Option.IDENTITY_COMPARISONS;
-import static org.hibernate.validator.internal.util.ConcurrentReferenceHashMap.ReferenceType.SOFT;
 import static org.hibernate.validator.internal.util.logging.Messages.MESSAGES;
 
+import java.lang.invoke.MethodHandles;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import org.hibernate.validator.internal.engine.ConstraintCreationContext;
 import org.hibernate.validator.internal.engine.MethodValidationConfiguration;
@@ -26,10 +28,11 @@ import org.hibernate.validator.internal.metadata.provider.MetaDataProvider;
 import org.hibernate.validator.internal.metadata.raw.BeanConfiguration;
 import org.hibernate.validator.internal.properties.javabean.JavaBeanHelper;
 import org.hibernate.validator.internal.util.CollectionHelper;
-import org.hibernate.validator.internal.util.ConcurrentReferenceHashMap;
 import org.hibernate.validator.internal.util.Contracts;
 import org.hibernate.validator.internal.util.ExecutableHelper;
 import org.hibernate.validator.internal.util.ExecutableParameterNameProvider;
+import org.hibernate.validator.internal.util.logging.Log;
+import org.hibernate.validator.internal.util.logging.LoggerFactory;
 import org.hibernate.validator.internal.util.classhierarchy.ClassHierarchyHelper;
 import org.hibernate.validator.internal.util.stereotypes.Immutable;
 import org.hibernate.validator.metadata.BeanMetaDataClassNormalizer;
@@ -56,17 +59,7 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
 	/**
 	 * The default initial capacity for this cache.
 	 */
-	private static final int DEFAULT_INITIAL_CAPACITY = 16;
-
-	/**
-	 * The default load factor for this cache.
-	 */
-	private static final float DEFAULT_LOAD_FACTOR = 0.75f;
-
-	/**
-	 * The default concurrency level for this cache.
-	 */
-	private static final int DEFAULT_CONCURRENCY_LEVEL = 16;
+	private static final long DEFAULT_MAX_SIZE = -1;
 
 	/**
 	 * Additional metadata providers used for meta data retrieval if
@@ -85,7 +78,7 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
 	/**
 	 * Used to cache the constraint meta data for validated entities
 	 */
-	private final ConcurrentReferenceHashMap<Class<?>, BeanMetaData<?>> beanMetaDataCache;
+	private final Cache<Class<?>, BeanMetaData<?>> beanMetaDataCache;
 
 	/**
 	 * Used for resolving type parameters. Thread-safe.
@@ -105,6 +98,8 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
 	 */
 	private final MethodValidationConfiguration methodValidationConfiguration;
 
+	private static final Log LOG = LoggerFactory.make( MethodHandles.lookup() );
+
 	public BeanMetaDataManagerImpl(ConstraintCreationContext constraintCreationContext,
 			ExecutableHelper executableHelper,
 			ExecutableParameterNameProvider parameterNameProvider,
@@ -113,7 +108,9 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
 			ValidationOrderGenerator validationOrderGenerator,
 			List<MetaDataProvider> optionalMetaDataProviders,
 			MethodValidationConfiguration methodValidationConfiguration,
-			ProcessedBeansTrackingVoter processedBeansTrackingVoter) {
+			ProcessedBeansTrackingVoter processedBeansTrackingVoter,
+			long cacheMaxSize,
+			Duration cacheExpiry) {
 		this.constraintCreationContext = constraintCreationContext;
 		this.executableHelper = executableHelper;
 		this.parameterNameProvider = parameterNameProvider;
@@ -122,14 +119,22 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
 		this.methodValidationConfiguration = methodValidationConfiguration;
 		this.processedBeansTrackingVoter = processedBeansTrackingVoter;
 
-		this.beanMetaDataCache = new ConcurrentReferenceHashMap<>(
-				DEFAULT_INITIAL_CAPACITY,
-				DEFAULT_LOAD_FACTOR,
-				DEFAULT_CONCURRENCY_LEVEL,
-				SOFT,
-				SOFT,
-				EnumSet.of( IDENTITY_COMPARISONS )
-		);
+		Caffeine<Object, Object> caffeineBuilder = Caffeine.newBuilder()
+				.initialCapacity( 16 );
+
+		if ( cacheMaxSize > 0 ) {
+			caffeineBuilder.maximumSize( cacheMaxSize );
+		}
+
+		if ( cacheExpiry != null ) {
+			caffeineBuilder.expireAfterAccess( cacheExpiry );
+		}
+
+		this.beanMetaDataCache = caffeineBuilder.build();
+
+		if ( LOG.isDebugEnabled() ) {
+			LOG.debugf( "Initialized bean meta data cache with maxSize=%d, expiry=%s", cacheMaxSize, cacheExpiry );
+		}
 
 		AnnotationProcessingOptions annotationProcessingOptions = getAnnotationProcessingOptionsFromNonDefaultProviders( optionalMetaDataProviders );
 		AnnotationMetaDataProvider defaultProvider = new AnnotationMetaDataProvider(
@@ -148,6 +153,20 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
 		this.metaDataProviders = CollectionHelper.toImmutableList( tmpMetaDataProviders );
 	}
 
+	public BeanMetaDataManagerImpl(ConstraintCreationContext constraintCreationContext,
+			ExecutableHelper executableHelper,
+			ExecutableParameterNameProvider parameterNameProvider,
+			JavaBeanHelper javaBeanHelper,
+			BeanMetaDataClassNormalizer beanMetaDataClassNormalizer,
+			ValidationOrderGenerator validationOrderGenerator,
+			List<MetaDataProvider> optionalMetaDataProviders,
+			MethodValidationConfiguration methodValidationConfiguration,
+			ProcessedBeansTrackingVoter processedBeansTrackingVoter) {
+		this( constraintCreationContext, executableHelper, parameterNameProvider, javaBeanHelper,
+				beanMetaDataClassNormalizer, validationOrderGenerator, optionalMetaDataProviders,
+				methodValidationConfiguration, processedBeansTrackingVoter, DEFAULT_MAX_SIZE, null );
+	}
+
 	@Override
 	// TODO Some of these casts from BeanMetadata<? super T> to BeanMetadata<T> may not be safe.
 	//  Maybe we should return a wrapper around the BeanMetadata if the normalized class is different from beanClass?
@@ -158,18 +177,28 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
 		Class<? super T> normalizedBeanClass = beanMetaDataClassNormalizer.normalize( beanClass );
 
 		// First, let's do a simple lookup as it's the default case
-		BeanMetaData<? super T> beanMetaData = (BeanMetaData<? super T>) beanMetaDataCache.get( normalizedBeanClass );
+		BeanMetaData<? super T> beanMetaData = (BeanMetaData<? super T>) beanMetaDataCache.getIfPresent( normalizedBeanClass );
 
 		if ( beanMetaData != null ) {
+			if ( LOG.isTraceEnabled() ) {
+				LOG.tracef( "Cache hit for bean meta data of %s", normalizedBeanClass.getName() );
+			}
 			return (BeanMetaData<T>) beanMetaData;
+		}
+
+		if ( LOG.isTraceEnabled() ) {
+			LOG.tracef( "Cache miss for bean meta data of %s, creating new", normalizedBeanClass.getName() );
 		}
 
 		beanMetaData = createBeanMetaData( normalizedBeanClass );
 		BeanMetaData<? super T> previousBeanMetaData =
-				(BeanMetaData<? super T>) beanMetaDataCache.putIfAbsent( normalizedBeanClass, beanMetaData );
+				(BeanMetaData<? super T>) beanMetaDataCache.asMap().putIfAbsent( normalizedBeanClass, beanMetaData );
 
 		// we return the previous value if not null
 		if ( previousBeanMetaData != null ) {
+			if ( LOG.isTraceEnabled() ) {
+				LOG.tracef( "Concurrent creation of %s detected, returning previously created instance", normalizedBeanClass.getName() );
+			}
 			return (BeanMetaData<T>) previousBeanMetaData;
 		}
 
@@ -178,11 +207,11 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
 
 	@Override
 	public void clear() {
-		beanMetaDataCache.clear();
+		beanMetaDataCache.invalidateAll();
 	}
 
 	public int numberOfCachedBeanMetaDataInstances() {
-		return beanMetaDataCache.size();
+		return (int) beanMetaDataCache.estimatedSize();
 	}
 
 	/**

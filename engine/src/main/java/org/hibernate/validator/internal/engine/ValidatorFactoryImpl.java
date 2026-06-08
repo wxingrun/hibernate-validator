@@ -138,6 +138,10 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 
 	private final ProcessedBeansTrackingVoter processedBeansTrackingVoter;
 
+	private final long beanMetaDataCacheMaxSize;
+
+	private final Duration beanMetaDataCacheExpiry;
+
 	public ValidatorFactoryImpl(ConfigurationState configurationState) {
 		ClassLoader externalClassLoader = determineExternalClassLoader( configurationState );
 
@@ -235,6 +239,9 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 		this.processedBeansTrackingVoter = ( hibernateSpecificConfig != null && hibernateSpecificConfig.getProcessedBeansTrackingVoter() != null )
 				? hibernateSpecificConfig.getProcessedBeansTrackingVoter()
 				: new DefaultProcessedBeansTrackingVoter();
+
+		this.beanMetaDataCacheMaxSize = ( hibernateSpecificConfig != null ) ? hibernateSpecificConfig.getBeanMetaDataCacheMaxSize() : -1;
+		this.beanMetaDataCacheExpiry = ( hibernateSpecificConfig != null ) ? hibernateSpecificConfig.getBeanMetaDataCacheExpiry() : null;
 
 		if ( LOG.isDebugEnabled() ) {
 			logValidatorFactoryScopedConfiguration( validatorFactoryScopedContext );
@@ -360,7 +367,9 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 						validationOrderGenerator,
 						buildMetaDataProviders(),
 						methodValidationConfiguration,
-						processedBeansTrackingVoter
+						processedBeansTrackingVoter,
+						beanMetaDataCacheMaxSize,
+						beanMetaDataCacheExpiry
 				)
 		);
 

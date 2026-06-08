@@ -180,6 +180,26 @@ public interface BaseHibernateValidatorConfiguration<S extends BaseHibernateVali
 	String FAIL_FAST_ON_PROPERTY_VIOLATION = "hibernate.validator.fail_fast_on_property_violation";
 
 	/**
+	 * Property corresponding to the {@link #beanMetaDataCacheMaxSize} method.
+	 * Accepts a positive long value representing the maximum number of entries in the bean meta data cache.
+	 * Defaults to {@code -1} (unbounded).
+	 *
+	 * @since 9.2
+	 */
+	@Incubating
+	String BEAN_META_DATA_CACHE_MAX_SIZE = "hibernate.validator.bean_meta_data_cache_max_size";
+
+	/**
+	 * Property corresponding to the {@link #beanMetaDataCacheExpiry} method.
+	 * Accepts a duration value in ISO-8601 format (e.g. {@code PT30M} for 30 minutes).
+	 * Defaults to no expiration.
+	 *
+	 * @since 9.2
+	 */
+	@Incubating
+	String BEAN_META_DATA_CACHE_EXPIRY = "hibernate.validator.bean_meta_data_cache_expiry";
+
+	/**
 	 * <p>
 	 * Returns the {@link ResourceBundleLocator} used by the
 	 * {@link Configuration#getDefaultMessageInterpolator() default message
@@ -522,4 +542,26 @@ public interface BaseHibernateValidatorConfiguration<S extends BaseHibernateVali
 	 */
 	@Incubating
 	S processedBeansTrackingVoter(ProcessedBeansTrackingVoter processedBeanTrackingVoter);
+
+	/**
+	 * Allows setting the maximum size of the bean meta data cache. When the cache reaches the maximum size,
+	 * entries will be evicted using a window TinyLFU policy.
+	 *
+	 * @param maxSize the maximum number of entries in the cache, or {@code -1} for unbounded
+	 * @return {@code this} following the chaining method pattern
+	 * @since 9.2
+	 */
+	@Incubating
+	S beanMetaDataCacheMaxSize(long maxSize);
+
+	/**
+	 * Allows setting the expiration duration for entries in the bean meta data cache.
+	 * Once expired, entries will be recomputed on the next access.
+	 *
+	 * @param duration the duration after which entries expire, or {@code null} for no expiration
+	 * @return {@code this} following the chaining method pattern
+	 * @since 9.2
+	 */
+	@Incubating
+	S beanMetaDataCacheExpiry(Duration duration);
 }
