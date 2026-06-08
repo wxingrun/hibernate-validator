@@ -86,6 +86,26 @@ public class RecordConstrainedTest extends AbstractConstrainedTest {
 	}
 
 	@Test
+	public void testRecordWithCascadingBug() {
+		Set<ConstraintViolation<OuterRecord>> violations = validator.validate(
+				new OuterRecord( new InnerRecord( "a" ) )
+		);
+
+		assertThat( violations ).containsOnlyViolations(
+				violationOf( Size.class ).withPropertyPath( pathWith()
+						.property( "inner" )
+						.property( "field" )
+				)
+		);
+	}
+
+	private record InnerRecord(@Size(min = 2) String field) {
+	}
+
+	private record OuterRecord(@Valid InnerRecord inner) {
+	}
+
+	@Test
 	public void testRecordWithCascading() {
 		Set<ConstraintViolation<UserRecord>> violations = validator.validate(
 				new UserRecord( new NameRecord( "a", "bbbb" ), "not_an_email" )

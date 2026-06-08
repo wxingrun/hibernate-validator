@@ -124,6 +124,17 @@ public class JavaBeanHelper implements PropertyNodeNameProviderContext {
 					new JavaBeanPropertyImpl( declaringClass, correspondingProperty.get(), method.getName() ), this ) );
 		}
 
+		if ( declaringClass.isRecord() && method.getParameterCount() == 0 ) {
+			try {
+				if ( declaringClass.getMethod( method.getName() ).equals( method ) ) {
+					return new JavaBeanGetter( declaringClass, method, method.getName(), propertyNodeNameProvider.getName(
+							new JavaBeanPropertyImpl( declaringClass, method.getName(), method.getName() ), this ) );
+				}
+			} catch (NoSuchMethodException e) {
+				// ignore
+			}
+		}
+
 		return new JavaBeanMethod( method );
 	}
 

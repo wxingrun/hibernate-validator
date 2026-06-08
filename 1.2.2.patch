@@ -1,0 +1,53 @@
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/properties/javabean/JavaBeanHelper.java b/engine/src/main/java/org/hibernate/validator/internal/properties/javabean/JavaBeanHelper.java
+index 640b1394d..8756765f0 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/properties/javabean/JavaBeanHelper.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/properties/javabean/JavaBeanHelper.java
+@@ -124,6 +124,17 @@ public JavaBeanMethod executable(Class<?> declaringClass, Method method) {
+ 					new JavaBeanPropertyImpl( declaringClass, correspondingProperty.get(), method.getName() ), this ) );
+ 		}
+ 
++		if ( declaringClass.isRecord() && method.getParameterCount() == 0 ) {
++			try {
++				if ( declaringClass.getMethod( method.getName() ).equals( method ) ) {
++					return new JavaBeanGetter( declaringClass, method, method.getName(), propertyNodeNameProvider.getName(
++							new JavaBeanPropertyImpl( declaringClass, method.getName(), method.getName() ), this ) );
++				}
++			} catch (NoSuchMethodException e) {
++				// ignore
++			}
++		}
++
+ 		return new JavaBeanMethod( method );
+ 	}
+ 
+diff --git a/engine/src/test/java/org/hibernate/validator/test/constraints/records/RecordConstrainedTest.java b/engine/src/test/java/org/hibernate/validator/test/constraints/records/RecordConstrainedTest.java
+index a7af89eeb..7c53cb7b7 100644
+--- a/engine/src/test/java/org/hibernate/validator/test/constraints/records/RecordConstrainedTest.java
++++ b/engine/src/test/java/org/hibernate/validator/test/constraints/records/RecordConstrainedTest.java
+@@ -85,6 +85,26 @@ public void testRecordWithComposedConstraint() {
+ 		);
+ 	}
+ 
++	@Test
++	public void testRecordWithCascadingBug() {
++		Set<ConstraintViolation<OuterRecord>> violations = validator.validate(
++				new OuterRecord( new InnerRecord( "a" ) )
++		);
++
++		assertThat( violations ).containsOnlyViolations(
++				violationOf( Size.class ).withPropertyPath( pathWith()
++						.property( "inner" )
++						.property( "field" )
++				)
++		);
++	}
++
++	private record InnerRecord(@Size(min = 2) String field) {
++	}
++
++	private record OuterRecord(@Valid InnerRecord inner) {
++	}
++
+ 	@Test
+ 	public void testRecordWithCascading() {
+ 		Set<ConstraintViolation<UserRecord>> violations = validator.validate(
