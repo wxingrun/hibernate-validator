@@ -1,0 +1,37 @@
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
+index 98aef1f1d..4746f082b 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
+@@ -24,6 +24,7 @@ jakarta.validation.constraints.Size.message            = size must be between {m
+ org.hibernate.validator.constraints.CreditCardNumber.message        = invalid credit card number
+ org.hibernate.validator.constraints.Currency.message                = invalid currency (must be one of {value})
+ org.hibernate.validator.constraints.EAN.message                     = invalid {type} barcode
++org.hibernate.validator.constraints.IdCard.message                  = invalid Chinese Resident Identity Card number
+ org.hibernate.validator.constraints.IpAddress.message               = invalid IP address
+ org.hibernate.validator.constraints.ISBN.message                    = invalid ISBN
+ org.hibernate.validator.constraints.Length.message                  = length must be between {min} and {max}
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties
+index 0b8998145..642102186 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties
+@@ -40,6 +40,8 @@ org.hibernate.validator.constraints.br.CNPJ.message                 = \u65e0\u65
+ org.hibernate.validator.constraints.br.CPF.message                  = \u65e0\u6548\u5df4\u897f\u4e2a\u4eba\u7eb3\u7a0e\u4eba\u767b\u8bb0\u53f7 (CPF)
+ org.hibernate.validator.constraints.br.TituloEleitoral.message      = \u65e0\u6548\u5df4\u897f\u6295\u7968\u4eba\u8eab\u4efd\u8bc1\u53f7
+ 
++org.hibernate.validator.constraints.IdCard.message                  = \u65e0\u6548\u7684\u4e2d\u56fd\u5c45\u6c11\u8eab\u4efd\u8bc1\u53f7\u7801
++
+ org.hibernate.validator.constraints.pl.REGON.message                = \u65e0\u6548\u6ce2\u5170\u7eb3\u7a0e\u4eba\u8bc6\u522b\u53f7 (REGON)
+ org.hibernate.validator.constraints.pl.NIP.message                  = \u65e0\u6548 VAT \u8bc6\u522b\u53f7 (NIP)
+ org.hibernate.validator.constraints.pl.PESEL.message                = \u65e0\u6548\u6ce2\u5170\u8eab\u4efd\u8bc1\u53f7 (PESEL)
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
+index 5af897f5c..8c1d362dd 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
+@@ -24,6 +24,7 @@ jakarta.validation.constraints.Size.message            = \u4e2a\u6570\u5fc5\u987
+ org.hibernate.validator.constraints.CreditCardNumber.message        = \u4e0d\u5408\u6cd5\u7684\u4fe1\u7528\u5361\u53f7\u7801
+ org.hibernate.validator.constraints.Currency.message                = \u4e0d\u5408\u6cd5\u7684\u8d27\u5e01 (\u5fc5\u987b\u662f{value}\u5176\u4e2d\u4e4b\u4e00)
+ org.hibernate.validator.constraints.EAN.message                     = \u4e0d\u5408\u6cd5\u7684{type}\u6761\u5f62\u7801
++org.hibernate.validator.constraints.IdCard.message                  = \u65e0\u6548\u7684\u4e2d\u56fd\u5c45\u6c11\u8eab\u4efd\u8bc1\u53f7\u7801
+ org.hibernate.validator.constraints.Length.message                  = \u957f\u5ea6\u9700\u8981\u5728{min}\u548c{max}\u4e4b\u95f4
+ org.hibernate.validator.constraints.CodePointLength.message         = \u957f\u5ea6\u9700\u8981\u5728{min}\u548c{max}\u4e4b\u95f4
+ org.hibernate.validator.constraints.LuhnCheck.message               = ${validatedValue}\u7684\u6821\u9a8c\u7801\u4e0d\u5408\u6cd5, Luhn\u6a2110\u6821\u9a8c\u548c\u4e0d\u5339\u914d
