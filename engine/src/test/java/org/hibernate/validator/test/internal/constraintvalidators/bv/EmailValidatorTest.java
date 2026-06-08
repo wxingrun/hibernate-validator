@@ -24,6 +24,7 @@ import org.hibernate.validator.cfg.defs.EmailDef;
 import org.hibernate.validator.internal.constraintvalidators.bv.EmailValidator;
 import org.hibernate.validator.internal.util.DomainNameUtil;
 import org.hibernate.validator.internal.util.StringHelper;
+import org.hibernate.validator.internal.util.annotation.ConstraintAnnotationDescriptor;
 import org.hibernate.validator.testutil.MyCustomStringImpl;
 import org.hibernate.validator.testutil.TestForIssue;
 import org.hibernate.validator.testutils.ValidatorUtil;
@@ -36,10 +37,8 @@ import org.testng.annotations.Test;
  * @author Guillaume Smet
  */
 public class EmailValidatorTest {
-	// http://stackoverflow.com/questions/406230/regular-expression-to-match-string-not-containing-a-word
 	private static final String noOrgEmailAddressRegexp = "^((?!\\.org).)*$";
 	private static EmailValidator validator;
-
 
 	@BeforeClass
 	public static void init() {
@@ -73,7 +72,7 @@ public class EmailValidatorTest {
 		isValidEmail( "\"much.more unusual\"@example.com" );
 		isValidEmail( "\"very.unusual.@.unusual.com\"@example.com" );
 		isValidEmail( "\"very.(),:;<>[]\\\".VERY.\\\"very@\\\\ \\\"very\\\".unusual\"@strange.example.com" );
-		isValidEmail( "\"some \".\" strange \".\" part*:; \"@strange.example.com" );
+		isValidEmail( "\"some \\".\\" strange \\".\\" part*:; \"@strange.example.com" );
 		isValidEmail( "example-indeed@strange-example.com" );
 		isValidEmail( "admin@mailserver1" );
 		isValidEmail( "#!$%&'*+-/=?^_`{}|~@example.org" );
@@ -105,13 +104,13 @@ public class EmailValidatorTest {
 		isInvalidEmail( ".me@example.com" );
 		isInvalidEmail( "me@example..com" );
 		isInvalidEmail( "me\\@example.com" );
-		isInvalidEmail( "Abc.example.com" ); // (no @ character)
-		isInvalidEmail( "A@b@c@example.com" ); // (only one @ is allowed outside quotation marks)
-		isInvalidEmail( "a\"b(c)d,e:f;g<h>i[j\\k]l@example.com" ); // (none of the special characters in this local-part are allowed outside quotation marks)
-		isInvalidEmail( "just\"not\"right@example.com" ); // (quoted strings must be dot separated or the only element making up the local-part)
-		isInvalidEmail( "this is\"not\\allowed@example.com" ); // (spaces, quotes, and backslashes may only exist when within quoted strings and preceded by a backslash)
-		isInvalidEmail( "this\\ still\\\"not\\\\allowed@example.com" ); // (even if escaped (preceded by a backslash), spaces, quotes, and backslashes must still be contained by quotes)
-		isInvalidEmail( "john..doe@example.com" ); // (double dot before @) with caveat: Gmail lets this through, Email address#Local-part the dots altogether
+		isInvalidEmail( "Abc.example.com" );
+		isInvalidEmail( "A@b@c@example.com" );
+		isInvalidEmail( "a\"b(c)d,e:f;g<h>i[j\\k]l@example.com" );
+		isInvalidEmail( "just\"not\"right@example.com" );
+		isInvalidEmail( "this is\"not\\allowed@example.com" );
+		isInvalidEmail( "this\\ still\\\"not\\\\allowed@example.com" );
+		isInvalidEmail( "john..doe@example.com" );
 		isInvalidEmail( "john.doe@example..com" );
 	}
 
@@ -141,18 +140,14 @@ public class EmailValidatorTest {
 	public void testEmailRegExp() {
 		final String email = "hardy@hibernate.org";
 
-		// ensure the plain email is valid
 		isValidEmail( email );
 
-
-		// add additional regexp constraint to email
 		Validator validator = ValidatorUtil.getValidator();
 		EmailContainer container = new EmailContainerAnnotated();
 		container.setEmail( email );
 		Set<ConstraintViolation<EmailContainer>> violations = validator.validate( container );
 		assertOrgAddressesAreNotValid( violations );
 
-		// now the same test with programmatic configuration
 		final HibernateValidatorConfiguration config = getConfiguration( HibernateValidator.class );
 		ConstraintMapping mapping = config.createConstraintMapping();
 		mapping.type( EmailContainer.class )
@@ -168,6 +163,69 @@ public class EmailValidatorTest {
 		container.setEmail( email );
 		violations = validator.validate( container );
 		assertOrgAddressesAreNotValid( violations );
+	}
+
+	@Test
+	public void testSingleLabelTopLevelDomainIsInvalidByDefault() {
+		isInvalidEmail( "user@com" );
+		isInvalidEmail( "admin@org" );
+		isValidEmail( "user@localserver" );
+	}
+
+	@Test
+	public void testSingleLabelTopLevelDomainIsValidWhenAllowTldEnabled() {
+		EmailValidator allowTldValidator = newInitializedValidator( true );
+		assertTrue( allowTldValidator.isValid( "user@com", null ) );
+		assertTrue( allowTldValidator.isValid( "admin@org", null ) );
+	}
+
+	@Test
+	public void testSingleLabelTopLevelDomainStillRequiresValidEmailWhenAllowTldEnabled() {
+		EmailValidator allowTldValidator = newInitializedValidator( true );
+		assertFalse( allowTldValidator.isValid( "@org", null ) );
+		assertFalse( allowTldValidator.isValid( "user@org.", null ) );
+	}
+
+	@Test
+	public void testAllowTldOnConstraintAnnotation() {
+		Validator validator = ValidatorUtil.getValidator();
+		EmailContainer container = new EmailContainerAllowTldAnnotated();
+		container.setEmail( "user@com" );
+		assertTrue( validator.validate( container ).isEmpty() );
+	}
+
+	@Test
+	public void testAllowTldWithProgrammaticConfiguration() {
+		final HibernateValidatorConfiguration config = getConfiguration( HibernateValidator.class );
+		ConstraintMapping mapping = config.createConstraintMapping();
+		mapping.type( EmailContainer.class )
+				.getter( "email" )
+				.constraint( new EmailDef().allowTld( true ) );
+		config.addMapping( mapping );
+
+		Validator validator = config.buildValidatorFactory().getValidator();
+		EmailContainer container = new EmailContainerNoAnnotations();
+		container.setEmail( "admin@org" );
+		assertTrue( validator.validate( container ).isEmpty() );
+	}
+
+	@Test
+	public void testAllowTldWithProgrammaticConfigurationStillHonorsRegexp() {
+		final HibernateValidatorConfiguration config = getConfiguration( HibernateValidator.class );
+		ConstraintMapping mapping = config.createConstraintMapping();
+		mapping.type( EmailContainer.class )
+				.getter( "email" )
+				.constraint(
+						new EmailDef().allowTld( true )
+								.regexp( noOrgEmailAddressRegexp )
+								.message( "ORG addresses are not valid" )
+				);
+		config.addMapping( mapping );
+
+		Validator validator = config.buildValidatorFactory().getValidator();
+		EmailContainer container = new EmailContainerNoAnnotations();
+		container.setEmail( "admin@org" );
+		assertOrgAddressesAreNotValid( validator.validate( container ) );
 	}
 
 	@Test
@@ -187,7 +245,6 @@ public class EmailValidatorTest {
 	@Test
 	@TestForIssue(jiraKey = { "HV-1005", "HV-1066" })
 	public void testEmailWithUpTo64CharacterLocalPartIsValid() {
-		// Local part should allow up to 64 octets: https://tools.ietf.org/html/rfc5321#section-4.5.3.1.1
 		for ( int length = 1; length <= 64; length++ ) {
 			isValidEmail( stringOfLength( length ) + "@foo.com" );
 		}
@@ -202,7 +259,6 @@ public class EmailValidatorTest {
 	@Test
 	@TestForIssue(jiraKey = { "HV-1005", "HV-1066" })
 	public void testEmailWithUpTo255CharacterDomainPartIsValid() {
-		// Domain part should allow up to 255
 		for ( int length = 1; length <= 251; length++ ) {
 			isValidEmail( "foo@" + domainOfLength( length ) + ".com" );
 		}
@@ -217,7 +273,6 @@ public class EmailValidatorTest {
 	@Test
 	@TestForIssue(jiraKey = "HV-1005")
 	public void testEmailWith256CharacterDomainPartIsInvalid() {
-		// Domain part should allow up to 255
 		isInvalidEmail( "foo@" + domainOfLength( 252 ) + ".com" );
 	}
 
@@ -240,7 +295,6 @@ public class EmailValidatorTest {
 	private String domainOfLength(int length) {
 		StringBuilder builder = new StringBuilder();
 		for ( int i = 0; i < length; i++ ) {
-			// we insert a dot from time to time to be sure each label of the domain name is at most 63 characters long
 			if ( i % 32 == 0 && i > 0 && i < length - 1 ) {
 				builder.append( "." );
 			}
@@ -251,6 +305,14 @@ public class EmailValidatorTest {
 		String s = builder.toString();
 		assertEquals( s.getBytes().length, length );
 		return s;
+	}
+
+	private EmailValidator newInitializedValidator(boolean allowTld) {
+		EmailValidator emailValidator = new EmailValidator();
+		ConstraintAnnotationDescriptor.Builder<Email> descriptorBuilder = new ConstraintAnnotationDescriptor.Builder<>( Email.class );
+		descriptorBuilder.setAttribute( "allowTld", allowTld );
+		emailValidator.initialize( descriptorBuilder.build().getAnnotation() );
+		return emailValidator;
 	}
 
 	private void assertOrgAddressesAreNotValid(Set<ConstraintViolation<EmailContainer>> violations) {
@@ -291,6 +353,14 @@ public class EmailValidatorTest {
 	private static class EmailContainerAnnotated extends EmailContainer {
 		@Override
 		@Email(regexp = EmailValidatorTest.noOrgEmailAddressRegexp, message = "ORG addresses are not valid")
+		public String getEmail() {
+			return email;
+		}
+	}
+
+	private static class EmailContainerAllowTldAnnotated extends EmailContainer {
+		@Override
+		@Email(allowTld = true)
 		public String getEmail() {
 			return email;
 		}

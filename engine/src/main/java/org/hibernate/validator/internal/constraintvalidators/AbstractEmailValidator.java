@@ -36,14 +36,13 @@ public class AbstractEmailValidator<A extends Annotation> implements ConstraintV
 
 	private static final String LOCAL_PART_ATOM = "[a-z0-9!#$%&'*+/=?^_`{|}~\u0080-\uFFFF-]";
 	private static final String LOCAL_PART_INSIDE_QUOTES_ATOM = "(?:[a-z0-9!#$%&'*.(),<>\\[\\]:;  @+/=?^_`{|}~\u0080-\uFFFF-]|\\\\\\\\|\\\\\\\")";
-	/**
-	 * Regular expression for the local part of an email address (everything before '@')
-	 */
 	private static final Pattern LOCAL_PART_PATTERN = Pattern.compile(
 			"(?:" + LOCAL_PART_ATOM + "+|\"" + LOCAL_PART_INSIDE_QUOTES_ATOM + "+\")" +
 					"(?:\\." + "(?:" + LOCAL_PART_ATOM + "+|\"" + LOCAL_PART_INSIDE_QUOTES_ATOM + "+\")" + ")*",
 			CASE_INSENSITIVE
 	);
+
+	private boolean allowTld;
 
 	@Override
 	public boolean isValid(CharSequence value, ConstraintValidatorContext context) {
@@ -51,12 +50,9 @@ public class AbstractEmailValidator<A extends Annotation> implements ConstraintV
 			return true;
 		}
 
-		// cannot split email string at @ as it can be a part of quoted local part of email.
-		// so we need to split at a position of last @ present in the string:
 		String stringValue = value.toString();
 		int splitPosition = stringValue.lastIndexOf( '@' );
 
-		// need to check if
 		if ( splitPosition < 0 ) {
 			return false;
 		}
@@ -68,7 +64,11 @@ public class AbstractEmailValidator<A extends Annotation> implements ConstraintV
 			return false;
 		}
 
-		return DomainNameUtil.isValidEmailDomainAddress( domainPart );
+		return DomainNameUtil.isValidEmailDomainAddress( domainPart, allowTld );
+	}
+
+	protected void setAllowTld(boolean allowTld) {
+		this.allowTld = allowTld;
 	}
 
 	private boolean isValidEmailLocalPart(String localPart) {

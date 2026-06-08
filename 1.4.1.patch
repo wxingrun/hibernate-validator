@@ -1,0 +1,476 @@
+diff --git a/engine/src/main/java/org/hibernate/validator/cfg/defs/EmailDef.java b/engine/src/main/java/org/hibernate/validator/cfg/defs/EmailDef.java
+index e703345dc..10370c79b 100644
+--- a/engine/src/main/java/org/hibernate/validator/cfg/defs/EmailDef.java
++++ b/engine/src/main/java/org/hibernate/validator/cfg/defs/EmailDef.java
+@@ -30,4 +30,9 @@ public EmailDef flags(Pattern.Flag... flags) {
+ 		addParameter( "flags", flags );
+ 		return this;
+ 	}
++
++	public EmailDef allowTld(boolean allowTld) {
++		addParameter( "allowTld", allowTld );
++		return this;
++	}
+ }
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/constraintvalidators/AbstractEmailValidator.java b/engine/src/main/java/org/hibernate/validator/internal/constraintvalidators/AbstractEmailValidator.java
+index fc8568911..c517a685b 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/constraintvalidators/AbstractEmailValidator.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/constraintvalidators/AbstractEmailValidator.java
+@@ -36,27 +36,23 @@
+ 
+ 	private static final String LOCAL_PART_ATOM = "[a-z0-9!#$%&'*+/=?^_`{|}~\u0080-\uFFFF-]";
+ 	private static final String LOCAL_PART_INSIDE_QUOTES_ATOM = "(?:[a-z0-9!#$%&'*.(),<>\\[\\]:;  @+/=?^_`{|}~\u0080-\uFFFF-]|\\\\\\\\|\\\\\\\")";
+-	/**
+-	 * Regular expression for the local part of an email address (everything before '@')
+-	 */
+ 	private static final Pattern LOCAL_PART_PATTERN = Pattern.compile(
+ 			"(?:" + LOCAL_PART_ATOM + "+|\"" + LOCAL_PART_INSIDE_QUOTES_ATOM + "+\")" +
+ 					"(?:\\." + "(?:" + LOCAL_PART_ATOM + "+|\"" + LOCAL_PART_INSIDE_QUOTES_ATOM + "+\")" + ")*",
+ 			CASE_INSENSITIVE
+ 	);
+ 
++	private boolean allowTld;
++
+ 	@Override
+ 	public boolean isValid(CharSequence value, ConstraintValidatorContext context) {
+ 		if ( value == null || value.length() == 0 ) {
+ 			return true;
+ 		}
+ 
+-		// cannot split email string at @ as it can be a part of quoted local part of email.
+-		// so we need to split at a position of last @ present in the string:
+ 		String stringValue = value.toString();
+ 		int splitPosition = stringValue.lastIndexOf( '@' );
+ 
+-		// need to check if
+ 		if ( splitPosition < 0 ) {
+ 			return false;
+ 		}
+@@ -68,7 +64,11 @@ public boolean isValid(CharSequence value, ConstraintValidatorContext context) {
+ 			return false;
+ 		}
+ 
+-		return DomainNameUtil.isValidEmailDomainAddress( domainPart );
++		return DomainNameUtil.isValidEmailDomainAddress( domainPart, allowTld );
++	}
++
++	protected void setAllowTld(boolean allowTld) {
++		this.allowTld = allowTld;
+ 	}
+ 
+ 	private boolean isValidEmailLocalPart(String localPart) {
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/constraintvalidators/bv/EmailValidator.java b/engine/src/main/java/org/hibernate/validator/internal/constraintvalidators/bv/EmailValidator.java
+index 2153bb1a2..c4d246949 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/constraintvalidators/bv/EmailValidator.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/constraintvalidators/bv/EmailValidator.java
+@@ -30,6 +30,7 @@ public class EmailValidator extends AbstractEmailValidator<Email> {
+ 	@Override
+ 	public void initialize(Email emailAnnotation) {
+ 		super.initialize( emailAnnotation );
++		setAllowTld( emailAnnotation.allowTld() );
+ 
+ 		Pattern.Flag[] flags = emailAnnotation.flags();
+ 		int intFlag = 0;
+@@ -37,7 +38,6 @@ public void initialize(Email emailAnnotation) {
+ 			intFlag = intFlag | flag.getValue();
+ 		}
+ 
+-		// we only apply the regexp if there is one to apply
+ 		if ( !".*".equals( emailAnnotation.regexp() ) || emailAnnotation.flags().length > 0 ) {
+ 			try {
+ 				pattern = java.util.regex.Pattern.compile( emailAnnotation.regexp(), intFlag );
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/util/DomainNameUtil.java b/engine/src/main/java/org/hibernate/validator/internal/util/DomainNameUtil.java
+index a05b45e94..8667aa1db 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/util/DomainNameUtil.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/util/DomainNameUtil.java
+@@ -7,6 +7,8 @@
+ import static java.util.regex.Pattern.CASE_INSENSITIVE;
+ 
+ import java.net.IDN;
++import java.util.Locale;
++import java.util.Set;
+ import java.util.regex.Matcher;
+ import java.util.regex.Pattern;
+ 
+@@ -16,10 +18,6 @@
+  */
+ public final class DomainNameUtil {
+ 
+-	/**
+-	 * This is the maximum length of a domain name. But be aware that each label (parts separated by a dot) of the
+-	 * domain name must be at most 63 characters long. This is verified by {@link IDN#toASCII(String)}.
+-	 */
+ 	private static final int MAX_DOMAIN_PART_LENGTH = 255;
+ 
+ 	private static final String DOMAIN_CHARS_WITHOUT_DASH = "[a-z\u0080-\uFFFF0-9!#$%&'*+/=?^_`{|}~]";
+@@ -27,67 +25,74 @@ public final class DomainNameUtil {
+ 	private static final String DOMAIN = DOMAIN_LABEL + "(?:\\." + DOMAIN_LABEL + ")*+";
+ 
+ 	private static final String IP_DOMAIN = "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}";
+-	//IP v6 regex taken from http://stackoverflow.com/questions/53497/regular-expression-that-matches-valid-ipv6-addresses
+ 	private static final String IP_V6_DOMAIN =
+ 			"(?:(?:[0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(?::[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(?:ffff(:0{1,4}){0,1}:){0,1}(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])|(?:[0-9a-fA-F]{1,4}:){1,4}:(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9]))";
+ 
+-	/**
+-	 * Regular expression for the domain part of an URL
+-	 * <p>
+-	 * A host string must be a domain string, an IPv4 address string, or "[", followed by an IPv6 address string,
+-	 * followed by "]".
+-	 */
+ 	private static final Pattern DOMAIN_PATTERN = Pattern.compile(
+ 			DOMAIN + "|\\[" + IP_V6_DOMAIN + "\\]", CASE_INSENSITIVE
+ 	);
+ 
+-	/**
+-	 * Regular expression for the domain part of an email address (everything after '@')
+-	 */
+ 	private static final Pattern EMAIL_DOMAIN_PATTERN = Pattern.compile(
+ 			DOMAIN + "|\\[" + IP_DOMAIN + "\\]|" + "\\[IPv6:" + IP_V6_DOMAIN + "\\]", CASE_INSENSITIVE
+ 	);
+ 
++	private static final Set<String> SINGLE_LABEL_TOP_LEVEL_EMAIL_DOMAINS = Set.of(
++			"aero",
++			"arpa",
++			"asia",
++			"biz",
++			"cat",
++			"com",
++			"coop",
++			"edu",
++			"gov",
++			"info",
++			"int",
++			"jobs",
++			"mil",
++			"mobi",
++			"museum",
++			"name",
++			"net",
++			"org",
++			"post",
++			"pro",
++			"tel",
++			"travel",
++			"xxx"
++	);
++
+ 	private DomainNameUtil() {
+ 	}
+ 
+-	/**
+-	 * Checks the validity of the domain name used in an email. To be valid it should be either a valid host name, or an
+-	 * IP address wrapped in [].
+-	 *
+-	 * @param domain domain to check for validity
+-	 * @return {@code true} if the provided string is a valid domain, {@code false} otherwise
+-	 */
+ 	public static boolean isValidEmailDomainAddress(String domain) {
+-		return isValidDomainAddress( domain, EMAIL_DOMAIN_PATTERN );
++		return isValidEmailDomainAddress( domain, false );
++	}
++
++	public static boolean isValidEmailDomainAddress(String domain, boolean allowTld) {
++		if ( !isValidDomainAddress( domain, EMAIL_DOMAIN_PATTERN ) ) {
++			return false;
++		}
++
++		if ( allowTld || domain.indexOf( '.' ) >= 0 || isIpDomain( domain ) ) {
++			return true;
++		}
++
++		String asciiString = toAscii( domain );
++		return asciiString != null && !SINGLE_LABEL_TOP_LEVEL_EMAIL_DOMAINS.contains( asciiString.toLowerCase( Locale.ROOT ) );
+ 	}
+ 
+-	/**
+-	 * Checks validity of a domain name.
+-	 *
+-	 * @param domain the domain to check for validity
+-	 * @return {@code true} if the provided string is a valid domain, {@code false} otherwise
+-	 */
+ 	public static boolean isValidDomainAddress(String domain) {
+ 		return isValidDomainAddress( domain, DOMAIN_PATTERN );
+ 	}
+ 
+ 	private static boolean isValidDomainAddress(String domain, Pattern pattern) {
+-		// if we have a trailing dot the domain part we have an invalid email address.
+-		// the regular expression match would take care of this, but IDN.toASCII drops the trailing '.'
+ 		if ( domain.endsWith( "." ) ) {
+ 			return false;
+ 		}
+ 
+-		String asciiString;
+-		try {
+-			asciiString = IDN.toASCII( domain );
+-		}
+-		catch (IllegalArgumentException e) {
+-			return false;
+-		}
+-
+-		if ( asciiString.length() > MAX_DOMAIN_PART_LENGTH ) {
++		String asciiString = toAscii( domain );
++		if ( asciiString == null || asciiString.length() > MAX_DOMAIN_PART_LENGTH ) {
+ 			return false;
+ 		}
+ 
+@@ -95,4 +100,16 @@ private static boolean isValidDomainAddress(String domain, Pattern pattern) {
+ 		return matcher.matches();
+ 	}
+ 
++	private static boolean isIpDomain(String domain) {
++		return domain.startsWith( "[" ) && domain.endsWith( "]" );
++	}
++
++	private static String toAscii(String domain) {
++		try {
++			return IDN.toASCII( domain );
++		}
++		catch (IllegalArgumentException e) {
++			return null;
++		}
++	}
+ }
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
+index 98aef1f1d..7a135edb8 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages.properties
+@@ -3,7 +3,7 @@ jakarta.validation.constraints.AssertTrue.message      = must be true
+ jakarta.validation.constraints.DecimalMax.message      = must be less than ${inclusive == true ? 'or equal to ' : ''}{value}
+ jakarta.validation.constraints.DecimalMin.message      = must be greater than ${inclusive == true ? 'or equal to ' : ''}{value}
+ jakarta.validation.constraints.Digits.message          = numeric value out of bounds (<{integer} digits>.<{fraction} digits> expected)
+-jakarta.validation.constraints.Email.message           = must be a well-formed email address
++jakarta.validation.constraints.Email.message           = must be a well-formed email address (single-label top-level domains require allowTld=true)
+ jakarta.validation.constraints.Future.message          = must be a future date
+ jakarta.validation.constraints.FutureOrPresent.message = must be a date in the present or in the future
+ jakarta.validation.constraints.Max.message             = must be less than or equal to {value}
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties
+index 0b8998145..06d061ff8 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh.properties
+@@ -3,7 +3,7 @@ jakarta.validation.constraints.AssertTrue.message      = \u5fc5\u987b\u4e3a true
+ jakarta.validation.constraints.DecimalMax.message      = \u5fc5\u987b\u5c0f\u4e8e ${inclusive == true ? 'or equal to ' : ''}{value}
+ jakarta.validation.constraints.DecimalMin.message      = \u5fc5\u987b\u5927\u4e8e ${inclusive == true ? 'or equal to ' : ''}{value}
+ jakarta.validation.constraints.Digits.message          = \u6570\u5b57\u503c\u8d85\u51fa\u4e86\u8fb9\u754c\uff08\u671f\u671b <{integer} digits>.<{fraction} digits>\uff09
+-jakarta.validation.constraints.Email.message           = \u5fc5\u987b\u4e3a\u683c\u5f0f\u89c4\u8303\u7684\u7535\u5b50\u90ae\u4ef6\u5730\u5740
++jakarta.validation.constraints.Email.message           = \u5fc5\u987b\u4e3a\u683c\u5f0f\u89c4\u8303\u7684\u7535\u5b50\u90ae\u4ef6\u5730\u5740\uff08single-label TLD \u9700\u542f\u7528 allowTld=true\uff09
+ jakarta.validation.constraints.Future.message          = \u5fc5\u987b\u662f\u672a\u6765\u7684\u65e5\u671f
+ jakarta.validation.constraints.FutureOrPresent.message = \u5fc5\u987b\u662f\u73b0\u5728\u6216\u5c06\u6765\u7684\u65e5\u671f
+ jakarta.validation.constraints.Max.message             = \u5fc5\u987b\u5c0f\u4e8e\u6216\u7b49\u4e8e {value}
+diff --git a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
+index 5af897f5c..c0114d40b 100644
+--- a/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
++++ b/engine/src/main/resources/org/hibernate/validator/ValidationMessages_zh_CN.properties
+@@ -3,7 +3,7 @@ jakarta.validation.constraints.AssertTrue.message      = \u53ea\u80fd\u4e3atrue
+ jakarta.validation.constraints.DecimalMax.message      = \u5FC5\u987B\u5C0F\u4E8E${inclusive == true ? '\u6216\u7B49\u4E8E' : ''}{value}
+ jakarta.validation.constraints.DecimalMin.message      = \u5FC5\u987B\u5927\u4E8E${inclusive == true ? '\u6216\u7B49\u4E8E' : ''}{value}
+ jakarta.validation.constraints.Digits.message          = \u6570\u5b57\u7684\u503c\u8d85\u51fa\u4e86\u5141\u8bb8\u8303\u56f4(\u53ea\u5141\u8bb8\u5728{integer}\u4f4d\u6574\u6570\u548c{fraction}\u4f4d\u5c0f\u6570\u8303\u56f4\u5185)
+-jakarta.validation.constraints.Email.message           = \u4e0d\u662f\u4e00\u4e2a\u5408\u6cd5\u7684\u7535\u5b50\u90ae\u4ef6\u5730\u5740
++jakarta.validation.constraints.Email.message           = \u4e0d\u662f\u4e00\u4e2a\u5408\u6cd5\u7684\u7535\u5b50\u90ae\u4ef6\u5730\u5740\uff08single-label TLD \u9700\u542f\u7528 allowTld=true\uff09
+ jakarta.validation.constraints.Future.message          = \u9700\u8981\u662f\u4e00\u4e2a\u5c06\u6765\u7684\u65f6\u95f4
+ jakarta.validation.constraints.FutureOrPresent.message = \u9700\u8981\u662f\u4e00\u4e2a\u5c06\u6765\u6216\u73b0\u5728\u7684\u65f6\u95f4
+ jakarta.validation.constraints.Max.message             = \u6700\u5927\u4e0d\u80fd\u8d85\u8fc7{value}
+diff --git a/engine/src/test/java/org/hibernate/validator/test/internal/constraintvalidators/bv/EmailValidatorTest.java b/engine/src/test/java/org/hibernate/validator/test/internal/constraintvalidators/bv/EmailValidatorTest.java
+index c986d78e7..03770dd1b 100644
+--- a/engine/src/test/java/org/hibernate/validator/test/internal/constraintvalidators/bv/EmailValidatorTest.java
++++ b/engine/src/test/java/org/hibernate/validator/test/internal/constraintvalidators/bv/EmailValidatorTest.java
+@@ -24,6 +24,7 @@
+ import org.hibernate.validator.internal.constraintvalidators.bv.EmailValidator;
+ import org.hibernate.validator.internal.util.DomainNameUtil;
+ import org.hibernate.validator.internal.util.StringHelper;
++import org.hibernate.validator.internal.util.annotation.ConstraintAnnotationDescriptor;
+ import org.hibernate.validator.testutil.MyCustomStringImpl;
+ import org.hibernate.validator.testutil.TestForIssue;
+ import org.hibernate.validator.testutils.ValidatorUtil;
+@@ -36,11 +37,9 @@
+  * @author Guillaume Smet
+  */
+ public class EmailValidatorTest {
+-	// http://stackoverflow.com/questions/406230/regular-expression-to-match-string-not-containing-a-word
+ 	private static final String noOrgEmailAddressRegexp = "^((?!\\.org).)*$";
+ 	private static EmailValidator validator;
+ 
+-
+ 	@BeforeClass
+ 	public static void init() {
+ 		validator = new EmailValidator();
+@@ -73,7 +72,7 @@ public void testValidEmail() throws Exception {
+ 		isValidEmail( "\"much.more unusual\"@example.com" );
+ 		isValidEmail( "\"very.unusual.@.unusual.com\"@example.com" );
+ 		isValidEmail( "\"very.(),:;<>[]\\\".VERY.\\\"very@\\\\ \\\"very\\\".unusual\"@strange.example.com" );
+-		isValidEmail( "\"some \".\" strange \".\" part*:; \"@strange.example.com" );
++		isValidEmail( "\"some \\".\\" strange \\".\\" part*:; \"@strange.example.com" );
+ 		isValidEmail( "example-indeed@strange-example.com" );
+ 		isValidEmail( "admin@mailserver1" );
+ 		isValidEmail( "#!$%&'*+-/=?^_`{}|~@example.org" );
+@@ -105,13 +104,13 @@ public void testInValidEmail() throws Exception {
+ 		isInvalidEmail( ".me@example.com" );
+ 		isInvalidEmail( "me@example..com" );
+ 		isInvalidEmail( "me\\@example.com" );
+-		isInvalidEmail( "Abc.example.com" ); // (no @ character)
+-		isInvalidEmail( "A@b@c@example.com" ); // (only one @ is allowed outside quotation marks)
+-		isInvalidEmail( "a\"b(c)d,e:f;g<h>i[j\\k]l@example.com" ); // (none of the special characters in this local-part are allowed outside quotation marks)
+-		isInvalidEmail( "just\"not\"right@example.com" ); // (quoted strings must be dot separated or the only element making up the local-part)
+-		isInvalidEmail( "this is\"not\\allowed@example.com" ); // (spaces, quotes, and backslashes may only exist when within quoted strings and preceded by a backslash)
+-		isInvalidEmail( "this\\ still\\\"not\\\\allowed@example.com" ); // (even if escaped (preceded by a backslash), spaces, quotes, and backslashes must still be contained by quotes)
+-		isInvalidEmail( "john..doe@example.com" ); // (double dot before @) with caveat: Gmail lets this through, Email address#Local-part the dots altogether
++		isInvalidEmail( "Abc.example.com" );
++		isInvalidEmail( "A@b@c@example.com" );
++		isInvalidEmail( "a\"b(c)d,e:f;g<h>i[j\\k]l@example.com" );
++		isInvalidEmail( "just\"not\"right@example.com" );
++		isInvalidEmail( "this is\"not\\allowed@example.com" );
++		isInvalidEmail( "this\\ still\\\"not\\\\allowed@example.com" );
++		isInvalidEmail( "john..doe@example.com" );
+ 		isInvalidEmail( "john.doe@example..com" );
+ 	}
+ 
+@@ -141,18 +140,14 @@ public void testMailWithInternationalDomainName() throws Exception {
+ 	public void testEmailRegExp() {
+ 		final String email = "hardy@hibernate.org";
+ 
+-		// ensure the plain email is valid
+ 		isValidEmail( email );
+ 
+-
+-		// add additional regexp constraint to email
+ 		Validator validator = ValidatorUtil.getValidator();
+ 		EmailContainer container = new EmailContainerAnnotated();
+ 		container.setEmail( email );
+ 		Set<ConstraintViolation<EmailContainer>> violations = validator.validate( container );
+ 		assertOrgAddressesAreNotValid( violations );
+ 
+-		// now the same test with programmatic configuration
+ 		final HibernateValidatorConfiguration config = getConfiguration( HibernateValidator.class );
+ 		ConstraintMapping mapping = config.createConstraintMapping();
+ 		mapping.type( EmailContainer.class )
+@@ -170,6 +165,69 @@ public void testEmailRegExp() {
+ 		assertOrgAddressesAreNotValid( violations );
+ 	}
+ 
++	@Test
++	public void testSingleLabelTopLevelDomainIsInvalidByDefault() {
++		isInvalidEmail( "user@com" );
++		isInvalidEmail( "admin@org" );
++		isValidEmail( "user@localserver" );
++	}
++
++	@Test
++	public void testSingleLabelTopLevelDomainIsValidWhenAllowTldEnabled() {
++		EmailValidator allowTldValidator = newInitializedValidator( true );
++		assertTrue( allowTldValidator.isValid( "user@com", null ) );
++		assertTrue( allowTldValidator.isValid( "admin@org", null ) );
++	}
++
++	@Test
++	public void testSingleLabelTopLevelDomainStillRequiresValidEmailWhenAllowTldEnabled() {
++		EmailValidator allowTldValidator = newInitializedValidator( true );
++		assertFalse( allowTldValidator.isValid( "@org", null ) );
++		assertFalse( allowTldValidator.isValid( "user@org.", null ) );
++	}
++
++	@Test
++	public void testAllowTldOnConstraintAnnotation() {
++		Validator validator = ValidatorUtil.getValidator();
++		EmailContainer container = new EmailContainerAllowTldAnnotated();
++		container.setEmail( "user@com" );
++		assertTrue( validator.validate( container ).isEmpty() );
++	}
++
++	@Test
++	public void testAllowTldWithProgrammaticConfiguration() {
++		final HibernateValidatorConfiguration config = getConfiguration( HibernateValidator.class );
++		ConstraintMapping mapping = config.createConstraintMapping();
++		mapping.type( EmailContainer.class )
++				.getter( "email" )
++				.constraint( new EmailDef().allowTld( true ) );
++		config.addMapping( mapping );
++
++		Validator validator = config.buildValidatorFactory().getValidator();
++		EmailContainer container = new EmailContainerNoAnnotations();
++		container.setEmail( "admin@org" );
++		assertTrue( validator.validate( container ).isEmpty() );
++	}
++
++	@Test
++	public void testAllowTldWithProgrammaticConfigurationStillHonorsRegexp() {
++		final HibernateValidatorConfiguration config = getConfiguration( HibernateValidator.class );
++		ConstraintMapping mapping = config.createConstraintMapping();
++		mapping.type( EmailContainer.class )
++				.getter( "email" )
++				.constraint(
++						new EmailDef().allowTld( true )
++								.regexp( noOrgEmailAddressRegexp )
++								.message( "ORG addresses are not valid" )
++				);
++		config.addMapping( mapping );
++
++		Validator validator = config.buildValidatorFactory().getValidator();
++		EmailContainer container = new EmailContainerNoAnnotations();
++		container.setEmail( "admin@org" );
++		assertOrgAddressesAreNotValid( validator.validate( container ) );
++	}
++
+ 	@Test
+ 	@TestForIssue(jiraKey = "HV-591")
+ 	public void testEmailAddressLength() {
+@@ -187,7 +245,6 @@ public void testEMailWithTrailingAt() throws Exception {
+ 	@Test
+ 	@TestForIssue(jiraKey = { "HV-1005", "HV-1066" })
+ 	public void testEmailWithUpTo64CharacterLocalPartIsValid() {
+-		// Local part should allow up to 64 octets: https://tools.ietf.org/html/rfc5321#section-4.5.3.1.1
+ 		for ( int length = 1; length <= 64; length++ ) {
+ 			isValidEmail( stringOfLength( length ) + "@foo.com" );
+ 		}
+@@ -202,7 +259,6 @@ public void testEmailWith65CharacterLocalPartIsInvalid() {
+ 	@Test
+ 	@TestForIssue(jiraKey = { "HV-1005", "HV-1066" })
+ 	public void testEmailWithUpTo255CharacterDomainPartIsValid() {
+-		// Domain part should allow up to 255
+ 		for ( int length = 1; length <= 251; length++ ) {
+ 			isValidEmail( "foo@" + domainOfLength( length ) + ".com" );
+ 		}
+@@ -217,7 +273,6 @@ public void testEmailWith63CharactersDomainPartIsValid() {
+ 	@Test
+ 	@TestForIssue(jiraKey = "HV-1005")
+ 	public void testEmailWith256CharacterDomainPartIsInvalid() {
+-		// Domain part should allow up to 255
+ 		isInvalidEmail( "foo@" + domainOfLength( 252 ) + ".com" );
+ 	}
+ 
+@@ -240,7 +295,6 @@ private String stringOfLength(int length) {
+ 	private String domainOfLength(int length) {
+ 		StringBuilder builder = new StringBuilder();
+ 		for ( int i = 0; i < length; i++ ) {
+-			// we insert a dot from time to time to be sure each label of the domain name is at most 63 characters long
+ 			if ( i % 32 == 0 && i > 0 && i < length - 1 ) {
+ 				builder.append( "." );
+ 			}
+@@ -253,6 +307,14 @@ private String domainOfLength(int length) {
+ 		return s;
+ 	}
+ 
++	private EmailValidator newInitializedValidator(boolean allowTld) {
++		EmailValidator emailValidator = new EmailValidator();
++		ConstraintAnnotationDescriptor.Builder<Email> descriptorBuilder = new ConstraintAnnotationDescriptor.Builder<>( Email.class );
++		descriptorBuilder.setAttribute( "allowTld", allowTld );
++		emailValidator.initialize( descriptorBuilder.build().getAnnotation() );
++		return emailValidator;
++	}
++
+ 	private void assertOrgAddressesAreNotValid(Set<ConstraintViolation<EmailContainer>> violations) {
+ 		assertThat( violations ).containsOnlyViolations(
+ 				violationOf( Email.class ).withMessage( "ORG addresses are not valid" )
+@@ -296,6 +358,14 @@ public String getEmail() {
+ 		}
+ 	}
+ 
++	private static class EmailContainerAllowTldAnnotated extends EmailContainer {
++		@Override
++		@Email(allowTld = true)
++		public String getEmail() {
++			return email;
++		}
++	}
++
+ 	private static class EmailContainerNoAnnotations extends EmailContainer {
+ 	}
+ }

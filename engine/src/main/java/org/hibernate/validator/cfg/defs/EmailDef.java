@@ -30,4 +30,9 @@ public class EmailDef extends ConstraintDef<EmailDef, Email> {
 		addParameter( "flags", flags );
 		return this;
 	}
+
+	public EmailDef allowTld(boolean allowTld) {
+		addParameter( "allowTld", allowTld );
+		return this;
+	}
 }

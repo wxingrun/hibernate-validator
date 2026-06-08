@@ -30,6 +30,7 @@ public class EmailValidator extends AbstractEmailValidator<Email> {
 	@Override
 	public void initialize(Email emailAnnotation) {
 		super.initialize( emailAnnotation );
+		setAllowTld( emailAnnotation.allowTld() );
 
 		Pattern.Flag[] flags = emailAnnotation.flags();
 		int intFlag = 0;
@@ -37,7 +38,6 @@ public class EmailValidator extends AbstractEmailValidator<Email> {
 			intFlag = intFlag | flag.getValue();
 		}
 
-		// we only apply the regexp if there is one to apply
 		if ( !".*".equals( emailAnnotation.regexp() ) || emailAnnotation.flags().length > 0 ) {
 			try {
 				pattern = java.util.regex.Pattern.compile( emailAnnotation.regexp(), intFlag );
