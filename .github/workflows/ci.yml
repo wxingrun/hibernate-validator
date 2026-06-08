@@ -105,6 +105,12 @@ jobs:
       - name: Set up Maven
         run: ./mvnw -v
 
+      - name: Check code formatting with Spotless
+        run: |
+          read -ra mvn_args <<< "$MAVEN_ARGS"
+          read -ra mvn_matrix_args <<< "$MAVEN_MATRIX_ARGS"
+          ./mvnw "${mvn_args[@]}" "${mvn_matrix_args[@]}" spotless:check
+
       - name: Build code and run tests and basic checks (Standalone)
         run: |
           read -ra mvn_args <<< "$MAVEN_ARGS"

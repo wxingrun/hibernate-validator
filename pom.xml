@@ -288,6 +288,7 @@
         <maven-deploy-plugin.skip>true</maven-deploy-plugin.skip>
         <forbiddenapis.skip>false</forbiddenapis.skip>
         <checkstyle.skip>false</checkstyle.skip>
+        <spotless.skip>false</spotless.skip>
 
         <!-- Maven Central repository -->
 
@@ -1417,6 +1418,7 @@
                     <artifactId>spotless-maven-plugin</artifactId>
                     <version>${version.spotless-maven-plugin}</version>
                     <configuration>
+                        <skip>${spotless.skip}</skip>
                         <upToDateChecking>
                             <enabled>true</enabled>
                             <indexFile>${project.basedir}/.cache/spotless-index-${version.spotless-maven-plugin}</indexFile>
@@ -1462,11 +1464,10 @@
                             </importOrder>
                             <trimTrailingWhitespace/>
                             <endWithNewline/>
-                            <eclipse>
-                                <!-- optional version of Eclipse Formatter -->
-                                <!-- <version>4.26</version> -->
-                                <file>hibernate_validator_style.xml</file>
-                            </eclipse>
+                            <googleJavaFormat>
+                                <version>1.25.2</version>
+                                <style>GOOGLE</style>
+                            </googleJavaFormat>
                             <removeUnusedImports>
                                 <!-- default one fails to process the classes -->
                                 <engine>cleanthat-javaparser-unnecessaryimport</engine>
