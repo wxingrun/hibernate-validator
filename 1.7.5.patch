@@ -1,0 +1,46 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 1cd3afbff..dbd903a73 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -105,6 +105,11 @@ jobs:
+       - name: Set up Maven
+         run: ./mvnw -v
+ 
++      - name: Check code formatting with Spotless
++        run: |
++          read -ra mvn_args <<< "$MAVEN_ARGS"
++          ./mvnw "${mvn_args[@]}" spotless:check
++
+       - name: Build code and run tests and basic checks (Standalone)
+         run: |
+           read -ra mvn_args <<< "$MAVEN_ARGS"
+diff --git a/pom.xml b/pom.xml
+index 69df9332b..4c37fa447 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -1452,21 +1452,15 @@
+                                 <exclude>**/TypeHelperTest.java</exclude>
+                                 <exclude>**/ConcurrentReferenceHashMap.java</exclude>
+                             </excludes>
+-                            <indent>
+-                                <tabs>true</tabs>
+-                                <spacesPerTab>4</spacesPerTab>
+-                            </indent>
+-
+                             <importOrder>
+                                 <file>hibernate_validator_style.importorder</file>
+                             </importOrder>
+                             <trimTrailingWhitespace/>
+                             <endWithNewline/>
+-                            <eclipse>
+-                                <!-- optional version of Eclipse Formatter -->
+-                                <!-- <version>4.26</version> -->
+-                                <file>hibernate_validator_style.xml</file>
+-                            </eclipse>
++                            <googleJavaFormat>
++                                <version>1.22.0</version>
++                                <style>GOOGLE</style>
++                            </googleJavaFormat>
+                             <removeUnusedImports>
+                                 <!-- default one fails to process the classes -->
+                                 <engine>cleanthat-javaparser-unnecessaryimport</engine>
