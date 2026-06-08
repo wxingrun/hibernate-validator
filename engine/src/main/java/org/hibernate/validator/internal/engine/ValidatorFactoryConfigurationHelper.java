@@ -277,6 +277,38 @@ final class ValidatorFactoryConfigurationHelper {
 		return configured.copy();
 	}
 
+	static Long determineBeanMetaDataCacheMaxSize(AbstractConfigurationImpl<?> configuration, Map<String, String> properties) {
+		Long tmpBeanMetaDataCacheMaxSize = configuration != null ? configuration.getBeanMetaDataCacheMaxSize() : null;
+
+		String propertyStringValue = properties.get( HibernateValidatorConfiguration.BEAN_META_DATA_CACHE_MAX_SIZE );
+		if ( propertyStringValue != null ) {
+			try {
+				tmpBeanMetaDataCacheMaxSize = Long.parseLong( propertyStringValue );
+			}
+			catch (NumberFormatException e) {
+				throw LOG.getInvalidPropertyValue( HibernateValidatorConfiguration.BEAN_META_DATA_CACHE_MAX_SIZE, propertyStringValue, e );
+			}
+		}
+
+		return tmpBeanMetaDataCacheMaxSize;
+	}
+
+	static Long determineBeanMetaDataCacheExpiration(AbstractConfigurationImpl<?> configuration, Map<String, String> properties) {
+		Long tmpBeanMetaDataCacheExpiration = configuration != null ? configuration.getBeanMetaDataCacheExpiration() : null;
+
+		String propertyStringValue = properties.get( HibernateValidatorConfiguration.BEAN_META_DATA_CACHE_EXPIRATION );
+		if ( propertyStringValue != null ) {
+			try {
+				tmpBeanMetaDataCacheExpiration = Long.parseLong( propertyStringValue );
+			}
+			catch (NumberFormatException e) {
+				throw LOG.getInvalidPropertyValue( HibernateValidatorConfiguration.BEAN_META_DATA_CACHE_EXPIRATION, propertyStringValue, e );
+			}
+		}
+
+		return tmpBeanMetaDataCacheExpiration;
+	}
+
 	static ExpressionLanguageFeatureLevel determineConstraintExpressionLanguageFeatureLevel(AbstractConfigurationImpl<?> hibernateSpecificConfig,
 			Map<String, String> properties) {
 		if ( hibernateSpecificConfig != null && hibernateSpecificConfig.getConstraintExpressionLanguageFeatureLevel() != null ) {

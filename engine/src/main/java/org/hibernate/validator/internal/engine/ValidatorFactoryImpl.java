@@ -8,6 +8,8 @@ import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurat
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineAllowOverridingMethodAlterParameterConstraint;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineAllowParallelMethodsDefineParameterConstraints;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineBeanMetaDataClassNormalizer;
+import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineBeanMetaDataCacheMaxSize;
+import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineBeanMetaDataCacheExpiration;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineConstraintExpressionLanguageFeatureLevel;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineConstraintMappings;
 import static org.hibernate.validator.internal.engine.ValidatorFactoryConfigurationHelper.determineConstraintValidatorPayload;
@@ -171,7 +173,9 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 				determineConstraintValidatorPayload( hibernateSpecificConfig ),
 				initializeConstraintValidatorInitializationShareDataManager( hibernateSpecificConfig ),
 				determineConstraintExpressionLanguageFeatureLevel( hibernateSpecificConfig, properties ),
-				determineCustomViolationExpressionLanguageFeatureLevel( hibernateSpecificConfig, properties )
+				determineCustomViolationExpressionLanguageFeatureLevel( hibernateSpecificConfig, properties ),
+				determineBeanMetaDataCacheMaxSize( hibernateSpecificConfig, properties ),
+				determineBeanMetaDataCacheExpiration( hibernateSpecificConfig, properties )
 		);
 
 		ConstraintValidatorManager constraintValidatorManager = new ConstraintValidatorManagerImpl(
@@ -360,7 +364,9 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 						validationOrderGenerator,
 						buildMetaDataProviders(),
 						methodValidationConfiguration,
-						processedBeansTrackingVoter
+						processedBeansTrackingVoter,
+						validatorFactoryScopedContext.getBeanMetaDataCacheMaxSize(),
+						validatorFactoryScopedContext.getBeanMetaDataCacheExpiration()
 				)
 		);
 

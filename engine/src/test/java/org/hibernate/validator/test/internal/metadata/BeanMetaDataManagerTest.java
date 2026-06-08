@@ -62,7 +62,9 @@ public class BeanMetaDataManagerTest {
 				new ValidationOrderGenerator(),
 				Collections.<MetaDataProvider>emptyList(),
 				new MethodValidationConfiguration.Builder().build(),
-				new DefaultProcessedBeansTrackingVoter()
+				new DefaultProcessedBeansTrackingVoter(),
+				null,
+				null
 		);
 	}
 

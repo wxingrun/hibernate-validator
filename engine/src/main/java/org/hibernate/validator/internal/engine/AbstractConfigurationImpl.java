@@ -134,6 +134,8 @@ public abstract class AbstractConfigurationImpl<T extends BaseHibernateValidator
 	private ExpressionLanguageFeatureLevel customViolationExpressionLanguageFeatureLevel;
 	private ProcessedBeansTrackingVoter processedBeansTrackingVoter;
 	private boolean showValidatedValuesInTraceLogs;
+	private Long beanMetaDataCacheMaxSize;
+	private Long beanMetaDataCacheExpiration;
 
 	protected AbstractConfigurationImpl(BootstrapState state) {
 		this();
@@ -893,6 +895,26 @@ public abstract class AbstractConfigurationImpl<T extends BaseHibernateValidator
 	}
 
 	protected abstract boolean preloadResourceBundles();
+
+	@Override
+	public T beanMetaDataCacheMaxSize(long maxSize) {
+		this.beanMetaDataCacheMaxSize = maxSize;
+		return thisAsT();
+	}
+
+	public Long getBeanMetaDataCacheMaxSize() {
+		return beanMetaDataCacheMaxSize;
+	}
+
+	@Override
+	public T beanMetaDataCacheExpiration(long expirationTime) {
+		this.beanMetaDataCacheExpiration = expirationTime;
+		return thisAsT();
+	}
+
+	public Long getBeanMetaDataCacheExpiration() {
+		return beanMetaDataCacheExpiration;
+	}
 
 	@SuppressWarnings("unchecked")
 	protected T thisAsT() {

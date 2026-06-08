@@ -68,7 +68,9 @@ public class ParameterMetaDataTest {
 				new ValidationOrderGenerator(),
 				Collections.<MetaDataProvider>emptyList(),
 				new MethodValidationConfiguration.Builder().build(),
-				new DefaultProcessedBeansTrackingVoter()
+				new DefaultProcessedBeansTrackingVoter(),
+				null,
+				null
 		);
 
 		beanMetaData = beanMetaDataManager.getBeanMetaData( CustomerRepository.class );

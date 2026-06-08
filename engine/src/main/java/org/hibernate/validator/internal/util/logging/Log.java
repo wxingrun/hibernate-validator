@@ -939,6 +939,9 @@ public interface Log extends BasicLogger {
 	@Message(id = 267, value = "'%c' is neither a digit nor an upper case ASCII letter.")
 	IllegalArgumentException getCharacterIsNotDigitOrUpperCaseLetterException(char c);
 
+	@Message(id = 275, value = "Invalid property value for %s: %s")
+	ValidationException getInvalidPropertyValue(String propertyName, String propertyValue, @Cause Exception e);
+
 	@Message(id = 268, value = "The default group sequence provider %s does not implement neither `getValidationGroups(Class<?> klass, T object)` nor `getValidationGroups(T object)` methods."
 			+ " One of them has to be implemented for the default group sequence provider to be correctly defined.")
 	GroupDefinitionException getDefaultGroupSequenceProviderTypeDoesNotImplementAnyMethodsException(@FormatWith(ClassObjectFormatter.class) Class<?> klass);

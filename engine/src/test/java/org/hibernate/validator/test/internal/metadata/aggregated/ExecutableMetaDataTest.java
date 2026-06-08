@@ -69,7 +69,9 @@ public class ExecutableMetaDataTest {
 				new ValidationOrderGenerator(),
 				Collections.<MetaDataProvider>emptyList(),
 				new MethodValidationConfiguration.Builder().build(),
-				new DefaultProcessedBeansTrackingVoter()
+				new DefaultProcessedBeansTrackingVoter(),
+				null,
+				null
 		);
 
 		beanMetaData = beanMetaDataManager.getBeanMetaData( CustomerRepositoryExt.class );

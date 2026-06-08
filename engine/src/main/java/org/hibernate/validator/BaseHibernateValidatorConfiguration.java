@@ -180,6 +180,22 @@ public interface BaseHibernateValidatorConfiguration<S extends BaseHibernateVali
 	String FAIL_FAST_ON_PROPERTY_VIOLATION = "hibernate.validator.fail_fast_on_property_violation";
 
 	/**
+	 * Property for configuring the max size of the bean metadata cache.
+	 *
+	 * @since 9.0
+	 */
+	@Incubating
+	String BEAN_META_DATA_CACHE_MAX_SIZE = "hibernate.validator.bean_meta_data_cache_max_size";
+
+	/**
+	 * Property for configuring the expiration time of the bean metadata cache in milliseconds.
+	 *
+	 * @since 9.0
+	 */
+	@Incubating
+	String BEAN_META_DATA_CACHE_EXPIRATION = "hibernate.validator.bean_meta_data_cache_expiration";
+
+	/**
 	 * <p>
 	 * Returns the {@link ResourceBundleLocator} used by the
 	 * {@link Configuration#getDefaultMessageInterpolator() default message
@@ -522,4 +538,24 @@ public interface BaseHibernateValidatorConfiguration<S extends BaseHibernateVali
 	 */
 	@Incubating
 	S processedBeansTrackingVoter(ProcessedBeansTrackingVoter processedBeanTrackingVoter);
+
+	/**
+	 * Allows setting the max size of the bean metadata cache.
+	 *
+	 * @param maxSize the max size
+	 * @return {@code this} following the chaining method pattern
+	 * @since 9.0
+	 */
+	@Incubating
+	S beanMetaDataCacheMaxSize(long maxSize);
+
+	/**
+	 * Allows setting the expiration time of the bean metadata cache in milliseconds.
+	 *
+	 * @param expirationTime the expiration time in milliseconds
+	 * @return {@code this} following the chaining method pattern
+	 * @since 9.0
+	 */
+	@Incubating
+	S beanMetaDataCacheExpiration(long expirationTime);
 }

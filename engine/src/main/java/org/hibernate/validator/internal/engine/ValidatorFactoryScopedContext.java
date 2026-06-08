@@ -93,6 +93,16 @@ public class ValidatorFactoryScopedContext {
 	 */
 	private final boolean showValidatedValuesInTraceLogs;
 
+	/**
+	 * Hibernate Validator specific configuration for the max size of the bean metadata cache.
+	 */
+	private final Long beanMetaDataCacheMaxSize;
+
+	/**
+	 * Hibernate Validator specific configuration for the expiration time of the bean metadata cache in milliseconds.
+	 */
+	private final Long beanMetaDataCacheExpiration;
+
 	ValidatorFactoryScopedContext(MessageInterpolator messageInterpolator,
 			TraversableResolver traversableResolver,
 			ExecutableParameterNameProvider parameterNameProvider,
@@ -106,13 +116,16 @@ public class ValidatorFactoryScopedContext {
 			Object constraintValidatorPayload,
 			HibernateConstraintValidatorInitializationSharedDataManager constraintValidatorInitializationSharedServiceManager,
 			ExpressionLanguageFeatureLevel constraintExpressionLanguageFeatureLevel,
-			ExpressionLanguageFeatureLevel customViolationExpressionLanguageFeatureLevel) {
+			ExpressionLanguageFeatureLevel customViolationExpressionLanguageFeatureLevel,
+			Long beanMetaDataCacheMaxSize,
+			Long beanMetaDataCacheExpiration) {
 		this( messageInterpolator, traversableResolver, parameterNameProvider, clockProvider, temporalValidationTolerance, scriptEvaluatorFactory, failFast,
 				failFastOnPropertyViolation, traversableResolverResultCacheEnabled, showValidatedValuesInTraceLogs, constraintValidatorPayload, constraintExpressionLanguageFeatureLevel,
 				customViolationExpressionLanguageFeatureLevel,
 				new HibernateConstraintValidatorInitializationContextImpl( scriptEvaluatorFactory, clockProvider,
 						temporalValidationTolerance, constraintValidatorInitializationSharedServiceManager
-				) );
+				),
+				beanMetaDataCacheMaxSize, beanMetaDataCacheExpiration );
 	}
 
 	ValidatorFactoryScopedContext(MessageInterpolator messageInterpolator,
@@ -128,7 +141,9 @@ public class ValidatorFactoryScopedContext {
 			Object constraintValidatorPayload,
 			ExpressionLanguageFeatureLevel constraintExpressionLanguageFeatureLevel,
 			ExpressionLanguageFeatureLevel customViolationExpressionLanguageFeatureLevel,
-			HibernateConstraintValidatorInitializationContextImpl constraintValidatorInitializationContext) {
+			HibernateConstraintValidatorInitializationContextImpl constraintValidatorInitializationContext,
+			Long beanMetaDataCacheMaxSize,
+			Long beanMetaDataCacheExpiration) {
 		this.messageInterpolator = messageInterpolator;
 		this.traversableResolver = traversableResolver;
 		this.parameterNameProvider = parameterNameProvider;
@@ -143,6 +158,8 @@ public class ValidatorFactoryScopedContext {
 		this.customViolationExpressionLanguageFeatureLevel = customViolationExpressionLanguageFeatureLevel;
 		this.showValidatedValuesInTraceLogs = showValidatedValuesInTraceLogs;
 		this.constraintValidatorInitializationContext = constraintValidatorInitializationContext;
+		this.beanMetaDataCacheMaxSize = beanMetaDataCacheMaxSize;
+		this.beanMetaDataCacheExpiration = beanMetaDataCacheExpiration;
 	}
 
 	public MessageInterpolator getMessageInterpolator() {
@@ -201,6 +218,14 @@ public class ValidatorFactoryScopedContext {
 		return showValidatedValuesInTraceLogs;
 	}
 
+	public Long getBeanMetaDataCacheMaxSize() {
+		return beanMetaDataCacheMaxSize;
+	}
+
+	public Long getBeanMetaDataCacheExpiration() {
+		return beanMetaDataCacheExpiration;
+	}
+
 	static class Builder {
 		private final ValidatorFactoryScopedContext defaultContext;
 
@@ -217,6 +242,8 @@ public class ValidatorFactoryScopedContext {
 		private ExpressionLanguageFeatureLevel constraintExpressionLanguageFeatureLevel;
 		private ExpressionLanguageFeatureLevel customViolationExpressionLanguageFeatureLevel;
 		private boolean showValidatedValuesInTraceLogs;
+		private Long beanMetaDataCacheMaxSize;
+		private Long beanMetaDataCacheExpiration;
 		private final HibernateConstraintValidatorInitializationContextImpl constraintValidatorInitializationContext;
 
 		Builder(ValidatorFactoryScopedContext defaultContext) {
@@ -236,6 +263,8 @@ public class ValidatorFactoryScopedContext {
 			this.constraintExpressionLanguageFeatureLevel = defaultContext.constraintExpressionLanguageFeatureLevel;
 			this.customViolationExpressionLanguageFeatureLevel = defaultContext.customViolationExpressionLanguageFeatureLevel;
 			this.showValidatedValuesInTraceLogs = defaultContext.showValidatedValuesInTraceLogs;
+			this.beanMetaDataCacheMaxSize = defaultContext.beanMetaDataCacheMaxSize;
+			this.beanMetaDataCacheExpiration = defaultContext.beanMetaDataCacheExpiration;
 			this.constraintValidatorInitializationContext = defaultContext.constraintValidatorInitializationContext;
 		}
 
@@ -333,6 +362,16 @@ public class ValidatorFactoryScopedContext {
 			return this;
 		}
 
+		public ValidatorFactoryScopedContext.Builder setBeanMetaDataCacheMaxSize(Long beanMetaDataCacheMaxSize) {
+			this.beanMetaDataCacheMaxSize = beanMetaDataCacheMaxSize;
+			return this;
+		}
+
+		public ValidatorFactoryScopedContext.Builder setBeanMetaDataCacheExpiration(Long beanMetaDataCacheExpiration) {
+			this.beanMetaDataCacheExpiration = beanMetaDataCacheExpiration;
+			return this;
+		}
+
 		public ValidatorFactoryScopedContext build() {
 			return new ValidatorFactoryScopedContext(
 					messageInterpolator,
@@ -353,7 +392,9 @@ public class ValidatorFactoryScopedContext {
 							clockProvider,
 							temporalValidationTolerance,
 							constraintValidatorInitializationContext.getConstraintValidatorInitializationSharedServiceManager()
-					)
+					),
+					beanMetaDataCacheMaxSize,
+					beanMetaDataCacheExpiration
 			);
 		}
 	}
