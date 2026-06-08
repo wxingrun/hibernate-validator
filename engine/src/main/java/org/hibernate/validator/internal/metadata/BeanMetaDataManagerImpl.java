@@ -5,13 +5,20 @@
 package org.hibernate.validator.internal.metadata;
 
 import static org.hibernate.validator.internal.util.CollectionHelper.newArrayList;
-import static org.hibernate.validator.internal.util.ConcurrentReferenceHashMap.Option.IDENTITY_COMPARISONS;
-import static org.hibernate.validator.internal.util.ConcurrentReferenceHashMap.ReferenceType.SOFT;
+
+import java.time.Duration;
 import static org.hibernate.validator.internal.util.logging.Messages.MESSAGES;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
+import com.github.benmanes.caffeine.cache.RemovalListener;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.hibernate.validator.internal.util.logging.Log;
+import org.hibernate.validator.internal.util.logging.LoggerFactory;
 
 import org.hibernate.validator.internal.engine.ConstraintCreationContext;
 import org.hibernate.validator.internal.engine.MethodValidationConfiguration;
@@ -53,20 +60,12 @@ import org.hibernate.validator.spi.tracking.ProcessedBeansTrackingVoter;
  * @author Guillaume Smet
 */
 public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
+	private static final Log LOG = LoggerFactory.make();
+
 	/**
 	 * The default initial capacity for this cache.
 	 */
 	private static final int DEFAULT_INITIAL_CAPACITY = 16;
-
-	/**
-	 * The default load factor for this cache.
-	 */
-	private static final float DEFAULT_LOAD_FACTOR = 0.75f;
-
-	/**
-	 * The default concurrency level for this cache.
-	 */
-	private static final int DEFAULT_CONCURRENCY_LEVEL = 16;
 
 	/**
 	 * Additional metadata providers used for meta data retrieval if
@@ -85,7 +84,7 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
 	/**
 	 * Used to cache the constraint meta data for validated entities
 	 */
-	private final ConcurrentReferenceHashMap<Class<?>, BeanMetaData<?>> beanMetaDataCache;
+	private final Cache<Class<?>, BeanMetaData<?>> beanMetaDataCache;
 
 	/**
 	 * Used for resolving type parameters. Thread-safe.
@@ -113,7 +112,9 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
 			ValidationOrderGenerator validationOrderGenerator,
 			List<MetaDataProvider> optionalMetaDataProviders,
 			MethodValidationConfiguration methodValidationConfiguration,
-			ProcessedBeansTrackingVoter processedBeansTrackingVoter) {
+			ProcessedBeansTrackingVoter processedBeansTrackingVoter,
+			Integer metadataCacheMaxSize,
+			Duration metadataCacheExpireAfterWrite) {
 		this.constraintCreationContext = constraintCreationContext;
 		this.executableHelper = executableHelper;
 		this.parameterNameProvider = parameterNameProvider;
@@ -122,14 +123,33 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
 		this.methodValidationConfiguration = methodValidationConfiguration;
 		this.processedBeansTrackingVoter = processedBeansTrackingVoter;
 
-		this.beanMetaDataCache = new ConcurrentReferenceHashMap<>(
-				DEFAULT_INITIAL_CAPACITY,
-				DEFAULT_LOAD_FACTOR,
-				DEFAULT_CONCURRENCY_LEVEL,
-				SOFT,
-				SOFT,
-				EnumSet.of( IDENTITY_COMPARISONS )
-		);
+		Caffeine<Object, Object> caffeineBuilder = Caffeine.newBuilder()
+				.initialCapacity(DEFAULT_INITIAL_CAPACITY);
+
+		if (metadataCacheMaxSize != null) {
+			caffeineBuilder.maximumSize(metadataCacheMaxSize);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Setting bean metadata cache maximum size to: " + metadataCacheMaxSize);
+			}
+		}
+
+		if (metadataCacheExpireAfterWrite != null) {
+			caffeineBuilder.expireAfterWrite(metadataCacheExpireAfterWrite);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Setting bean metadata cache expire after write to: " + metadataCacheExpireAfterWrite);
+			}
+		}
+
+		caffeineBuilder.removalListener(new RemovalListener<Class<?>, BeanMetaData<?>>() {
+			@Override
+			public void onRemoval(@Nullable Class<?> key, @Nullable BeanMetaData<?> value, RemovalCause cause) {
+				if (LOG.isDebugEnabled() && key != null) {
+					LOG.debug("Bean metadata for class " + key.getName() + " was removed from cache, cause: " + cause);
+				}
+			}
+		});
+
+		this.beanMetaDataCache = caffeineBuilder.build();
 
 		AnnotationProcessingOptions annotationProcessingOptions = getAnnotationProcessingOptionsFromNonDefaultProviders( optionalMetaDataProviders );
 		AnnotationMetaDataProvider defaultProvider = new AnnotationMetaDataProvider(
@@ -158,15 +178,22 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
 		Class<? super T> normalizedBeanClass = beanMetaDataClassNormalizer.normalize( beanClass );
 
 		// First, let's do a simple lookup as it's the default case
-		BeanMetaData<? super T> beanMetaData = (BeanMetaData<? super T>) beanMetaDataCache.get( normalizedBeanClass );
+		BeanMetaData<? super T> beanMetaData = (BeanMetaData<? super T>) beanMetaDataCache.getIfPresent( normalizedBeanClass );
 
 		if ( beanMetaData != null ) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Bean metadata cache hit for class: " + normalizedBeanClass.getName());
+			}
 			return (BeanMetaData<T>) beanMetaData;
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Bean metadata cache miss for class: " + normalizedBeanClass.getName());
 		}
 
 		beanMetaData = createBeanMetaData( normalizedBeanClass );
 		BeanMetaData<? super T> previousBeanMetaData =
-				(BeanMetaData<? super T>) beanMetaDataCache.putIfAbsent( normalizedBeanClass, beanMetaData );
+				(BeanMetaData<? super T>) beanMetaDataCache.asMap().putIfAbsent( normalizedBeanClass, beanMetaData );
 
 		// we return the previous value if not null
 		if ( previousBeanMetaData != null ) {

@@ -1,0 +1,367 @@
+diff --git a/engine/pom.xml b/engine/pom.xml
+index ed8b98431..ed07537aa 100644
+--- a/engine/pom.xml
++++ b/engine/pom.xml
+@@ -186,6 +186,10 @@
+             <artifactId>jackson-annotations</artifactId>
+             <scope>test</scope>
+         </dependency>
++        <dependency>
++            <groupId>com.github.ben-manes.caffeine</groupId>
++            <artifactId>caffeine</artifactId>
++        </dependency>
+         <dependency>
+             <groupId>net.bytebuddy</groupId>
+             <artifactId>byte-buddy</artifactId>
+diff --git a/engine/src/main/java/org/hibernate/validator/BaseHibernateValidatorConfiguration.java b/engine/src/main/java/org/hibernate/validator/BaseHibernateValidatorConfiguration.java
+index 13b47cd73..ba9c0ece6 100644
+--- a/engine/src/main/java/org/hibernate/validator/BaseHibernateValidatorConfiguration.java
++++ b/engine/src/main/java/org/hibernate/validator/BaseHibernateValidatorConfiguration.java
+@@ -171,13 +171,26 @@
+ 	String SHOW_VALIDATED_VALUE_IN_TRACE_LOGS = "hibernate.validator.show_validated_value_in_trace_logs";
+ 
+ 	/**
+-	 * Property corresponding to the {@link #failFastOnPropertyViolation} method.
+-	 * Accepts {@code true} or {@code false}. Defaults to {@code false}.
+-	 *
+-	 * @since 9.0
+-	 */
+-	@Incubating
+-	String FAIL_FAST_ON_PROPERTY_VIOLATION = "hibernate.validator.fail_fast_on_property_violation";
++     * Property corresponding to the {@link #failFastOnPropertyViolation} method.
++     * Accepts {@code true} or {@code false}. Defaults to {@code false}.
++     *
++     * @since 9.0
++     */
++    String FAIL_FAST_ON_PROPERTY_VIOLATION = "hibernate.validator.fail_fast_on_property_violation";
++
++    /**
++     * Property for configuring the maximum size of the bean metadata cache.
++     *
++     * @since 9.2
++     */
++    String METADATA_CACHE_MAX_SIZE = "hibernate.validator.metadata_cache.max_size";
++
++    /**
++     * Property for configuring the expire after write duration of the bean metadata cache in milliseconds.
++     *
++     * @since 9.2
++     */
++    String METADATA_CACHE_EXPIRE_AFTER_WRITE = "hibernate.validator.metadata_cache.expire_after_write";
+ 
+ 	/**
+ 	 * <p>
+@@ -522,4 +535,24 @@ default S locales(Locale... locales) {
+ 	 */
+ 	@Incubating
+ 	S processedBeansTrackingVoter(ProcessedBeansTrackingVoter processedBeanTrackingVoter);
++
++	/**
++	 * Configures the maximum size of the bean metadata cache.
++	 *
++	 * @param maxSize the maximum size of the cache.
++	 * @return {@code this} following the chaining method pattern.
++	 * @since 9.2
++	 */
++	@Incubating
++	S metadataCacheMaxSize(int maxSize);
++
++	/**
++	 * Configures the expire after write duration of the bean metadata cache.
++	 *
++	 * @param duration the duration after write to expire entries.
++	 * @return {@code this} following the chaining method pattern.
++	 * @since 9.2
++	 */
++	@Incubating
++	S metadataCacheExpireAfterWrite(Duration duration);
+ }
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/engine/AbstractConfigurationImpl.java b/engine/src/main/java/org/hibernate/validator/internal/engine/AbstractConfigurationImpl.java
+index d89be47be..4dd3aab51 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/engine/AbstractConfigurationImpl.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/engine/AbstractConfigurationImpl.java
+@@ -134,6 +134,8 @@
+ 	private ExpressionLanguageFeatureLevel customViolationExpressionLanguageFeatureLevel;
+ 	private ProcessedBeansTrackingVoter processedBeansTrackingVoter;
+ 	private boolean showValidatedValuesInTraceLogs;
++	private Integer metadataCacheMaxSize;
++	private Duration metadataCacheExpireAfterWrite;
+ 
+ 	protected AbstractConfigurationImpl(BootstrapState state) {
+ 		this();
+@@ -715,6 +717,32 @@ public ProcessedBeansTrackingVoter getProcessedBeansTrackingVoter() {
+ 		return processedBeansTrackingVoter;
+ 	}
+ 
++	@Override
++	public T metadataCacheMaxSize(int maxSize) {
++		if ( LOG.isDebugEnabled() ) {
++			LOG.debug( "Setting metadata cache max size to " + maxSize );
++		}
++		this.metadataCacheMaxSize = maxSize;
++		return thisAsT();
++	}
++
++	public Integer getMetadataCacheMaxSize() {
++		return metadataCacheMaxSize;
++	}
++
++	@Override
++	public T metadataCacheExpireAfterWrite(Duration duration) {
++		if ( LOG.isDebugEnabled() ) {
++			LOG.debug( "Setting metadata cache expire after write to " + duration );
++		}
++		this.metadataCacheExpireAfterWrite = duration;
++		return thisAsT();
++	}
++
++	public Duration getMetadataCacheExpireAfterWrite() {
++		return metadataCacheExpireAfterWrite;
++	}
++
+ 	public final Set<DefaultConstraintMapping> getProgrammaticMappings() {
+ 		return programmaticMappings;
+ 	}
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/engine/ValidatorFactoryConfigurationHelper.java b/engine/src/main/java/org/hibernate/validator/internal/engine/ValidatorFactoryConfigurationHelper.java
+index 277001048..a6a4afbec 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/engine/ValidatorFactoryConfigurationHelper.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/engine/ValidatorFactoryConfigurationHelper.java
+@@ -449,6 +449,38 @@ static boolean determineShowValidatedValuesInTraceLogs(AbstractConfigurationImpl
+ 		return tmpShowValidatedValuesInTraceLogging;
+ 	}
+ 
++	static Integer determineMetadataCacheMaxSize(AbstractConfigurationImpl<?> configuration, Map<String, String> properties) {
++		Integer tmpMaxSize = configuration != null ? configuration.getMetadataCacheMaxSize() : null;
++
++		String propertyStringValue = properties.get( HibernateValidatorConfiguration.METADATA_CACHE_MAX_SIZE );
++		if ( propertyStringValue != null ) {
++			try {
++				tmpMaxSize = Integer.parseInt( propertyStringValue );
++			}
++			catch (NumberFormatException e) {
++				throw new IllegalArgumentException( "Invalid metadata cache max size value: " + propertyStringValue, e );
++			}
++		}
++
++		return tmpMaxSize;
++	}
++
++	static Duration determineMetadataCacheExpireAfterWrite(AbstractConfigurationImpl<?> configuration, Map<String, String> properties) {
++		Duration tmpExpireAfterWrite = configuration != null ? configuration.getMetadataCacheExpireAfterWrite() : null;
++
++		String propertyStringValue = properties.get( HibernateValidatorConfiguration.METADATA_CACHE_EXPIRE_AFTER_WRITE );
++		if ( propertyStringValue != null ) {
++			try {
++				tmpExpireAfterWrite = Duration.ofMillis( Long.parseLong( propertyStringValue ) );
++			}
++			catch (NumberFormatException e) {
++				throw new IllegalArgumentException( "Invalid metadata cache expire after write value: " + propertyStringValue, e );
++			}
++		}
++
++		return tmpExpireAfterWrite;
++	}
++
+ 	static void logValidatorFactoryScopedConfiguration(ValidatorFactoryScopedContext context) {
+ 		LOG.logValidatorFactoryScopedConfiguration( context.getMessageInterpolator().getClass(), "message interpolator" );
+ 		LOG.logValidatorFactoryScopedConfiguration( context.getTraversableResolver().getClass(), "traversable resolver" );
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/engine/ValidatorFactoryImpl.java b/engine/src/main/java/org/hibernate/validator/internal/engine/ValidatorFactoryImpl.java
+index 2faa0042a..3c03c9c31 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/engine/ValidatorFactoryImpl.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/engine/ValidatorFactoryImpl.java
+@@ -137,6 +137,8 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
+ 	private final ValidationOrderGenerator validationOrderGenerator;
+ 
+ 	private final ProcessedBeansTrackingVoter processedBeansTrackingVoter;
++	private final Integer metadataCacheMaxSize;
++	private final Duration metadataCacheExpireAfterWrite;
+ 
+ 	public ValidatorFactoryImpl(ConfigurationState configurationState) {
+ 		ClassLoader externalClassLoader = determineExternalClassLoader( configurationState );
+@@ -148,6 +150,9 @@ public ValidatorFactoryImpl(ConfigurationState configurationState) {
+ 
+ 		Map<String, String> properties = configurationState.getProperties();
+ 
++		this.metadataCacheMaxSize = ValidatorFactoryConfigurationHelper.determineMetadataCacheMaxSize( hibernateSpecificConfig, properties );
++		this.metadataCacheExpireAfterWrite = ValidatorFactoryConfigurationHelper.determineMetadataCacheExpireAfterWrite( hibernateSpecificConfig, properties );
++
+ 		this.methodValidationConfiguration = new MethodValidationConfiguration.Builder()
+ 				.allowOverridingMethodAlterParameterConstraint(
+ 						determineAllowOverridingMethodAlterParameterConstraint( hibernateSpecificConfig, properties )
+@@ -360,7 +365,9 @@ Validator createValidator(ConstraintValidatorFactory constraintValidatorFactory,
+ 						validationOrderGenerator,
+ 						buildMetaDataProviders(),
+ 						methodValidationConfiguration,
+-						processedBeansTrackingVoter
++						processedBeansTrackingVoter,
++						metadataCacheMaxSize,
++						metadataCacheExpireAfterWrite
+ 				)
+ 		);
+ 
+diff --git a/engine/src/main/java/org/hibernate/validator/internal/metadata/BeanMetaDataManagerImpl.java b/engine/src/main/java/org/hibernate/validator/internal/metadata/BeanMetaDataManagerImpl.java
+index 967798728..aa7909d8b 100644
+--- a/engine/src/main/java/org/hibernate/validator/internal/metadata/BeanMetaDataManagerImpl.java
++++ b/engine/src/main/java/org/hibernate/validator/internal/metadata/BeanMetaDataManagerImpl.java
+@@ -5,14 +5,21 @@
+ package org.hibernate.validator.internal.metadata;
+ 
+ import static org.hibernate.validator.internal.util.CollectionHelper.newArrayList;
+-import static org.hibernate.validator.internal.util.ConcurrentReferenceHashMap.Option.IDENTITY_COMPARISONS;
+-import static org.hibernate.validator.internal.util.ConcurrentReferenceHashMap.ReferenceType.SOFT;
++
++import java.time.Duration;
+ import static org.hibernate.validator.internal.util.logging.Messages.MESSAGES;
+ 
+ import java.util.ArrayList;
+-import java.util.EnumSet;
+ import java.util.List;
+ 
++import com.github.benmanes.caffeine.cache.Cache;
++import com.github.benmanes.caffeine.cache.Caffeine;
++import com.github.benmanes.caffeine.cache.RemovalCause;
++import com.github.benmanes.caffeine.cache.RemovalListener;
++import org.checkerframework.checker.nullness.qual.Nullable;
++import org.hibernate.validator.internal.util.logging.Log;
++import org.hibernate.validator.internal.util.logging.LoggerFactory;
++
+ import org.hibernate.validator.internal.engine.ConstraintCreationContext;
+ import org.hibernate.validator.internal.engine.MethodValidationConfiguration;
+ import org.hibernate.validator.internal.engine.groups.ValidationOrderGenerator;
+@@ -53,21 +60,13 @@
+  * @author Guillaume Smet
+ */
+ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
++	private static final Log LOG = LoggerFactory.make();
++
+ 	/**
+ 	 * The default initial capacity for this cache.
+ 	 */
+ 	private static final int DEFAULT_INITIAL_CAPACITY = 16;
+ 
+-	/**
+-	 * The default load factor for this cache.
+-	 */
+-	private static final float DEFAULT_LOAD_FACTOR = 0.75f;
+-
+-	/**
+-	 * The default concurrency level for this cache.
+-	 */
+-	private static final int DEFAULT_CONCURRENCY_LEVEL = 16;
+-
+ 	/**
+ 	 * Additional metadata providers used for meta data retrieval if
+ 	 * the XML and/or programmatic configuration is used.
+@@ -85,7 +84,7 @@ public class BeanMetaDataManagerImpl implements BeanMetaDataManager {
+ 	/**
+ 	 * Used to cache the constraint meta data for validated entities
+ 	 */
+-	private final ConcurrentReferenceHashMap<Class<?>, BeanMetaData<?>> beanMetaDataCache;
++	private final Cache<Class<?>, BeanMetaData<?>> beanMetaDataCache;
+ 
+ 	/**
+ 	 * Used for resolving type parameters. Thread-safe.
+@@ -113,7 +112,9 @@ public BeanMetaDataManagerImpl(ConstraintCreationContext constraintCreationConte
+ 			ValidationOrderGenerator validationOrderGenerator,
+ 			List<MetaDataProvider> optionalMetaDataProviders,
+ 			MethodValidationConfiguration methodValidationConfiguration,
+-			ProcessedBeansTrackingVoter processedBeansTrackingVoter) {
++			ProcessedBeansTrackingVoter processedBeansTrackingVoter,
++			Integer metadataCacheMaxSize,
++			Duration metadataCacheExpireAfterWrite) {
+ 		this.constraintCreationContext = constraintCreationContext;
+ 		this.executableHelper = executableHelper;
+ 		this.parameterNameProvider = parameterNameProvider;
+@@ -122,14 +123,33 @@ public BeanMetaDataManagerImpl(ConstraintCreationContext constraintCreationConte
+ 		this.methodValidationConfiguration = methodValidationConfiguration;
+ 		this.processedBeansTrackingVoter = processedBeansTrackingVoter;
+ 
+-		this.beanMetaDataCache = new ConcurrentReferenceHashMap<>(
+-				DEFAULT_INITIAL_CAPACITY,
+-				DEFAULT_LOAD_FACTOR,
+-				DEFAULT_CONCURRENCY_LEVEL,
+-				SOFT,
+-				SOFT,
+-				EnumSet.of( IDENTITY_COMPARISONS )
+-		);
++		Caffeine<Object, Object> caffeineBuilder = Caffeine.newBuilder()
++				.initialCapacity(DEFAULT_INITIAL_CAPACITY);
++
++		if (metadataCacheMaxSize != null) {
++			caffeineBuilder.maximumSize(metadataCacheMaxSize);
++			if (LOG.isDebugEnabled()) {
++				LOG.debug("Setting bean metadata cache maximum size to: " + metadataCacheMaxSize);
++			}
++		}
++
++		if (metadataCacheExpireAfterWrite != null) {
++			caffeineBuilder.expireAfterWrite(metadataCacheExpireAfterWrite);
++			if (LOG.isDebugEnabled()) {
++				LOG.debug("Setting bean metadata cache expire after write to: " + metadataCacheExpireAfterWrite);
++			}
++		}
++
++		caffeineBuilder.removalListener(new RemovalListener<Class<?>, BeanMetaData<?>>() {
++			@Override
++			public void onRemoval(@Nullable Class<?> key, @Nullable BeanMetaData<?> value, RemovalCause cause) {
++				if (LOG.isDebugEnabled() && key != null) {
++					LOG.debug("Bean metadata for class " + key.getName() + " was removed from cache, cause: " + cause);
++				}
++			}
++		});
++
++		this.beanMetaDataCache = caffeineBuilder.build();
+ 
+ 		AnnotationProcessingOptions annotationProcessingOptions = getAnnotationProcessingOptionsFromNonDefaultProviders( optionalMetaDataProviders );
+ 		AnnotationMetaDataProvider defaultProvider = new AnnotationMetaDataProvider(
+@@ -158,15 +178,22 @@ public <T> BeanMetaData<T> getBeanMetaData(Class<T> beanClass) {
+ 		Class<? super T> normalizedBeanClass = beanMetaDataClassNormalizer.normalize( beanClass );
+ 
+ 		// First, let's do a simple lookup as it's the default case
+-		BeanMetaData<? super T> beanMetaData = (BeanMetaData<? super T>) beanMetaDataCache.get( normalizedBeanClass );
++		BeanMetaData<? super T> beanMetaData = (BeanMetaData<? super T>) beanMetaDataCache.getIfPresent( normalizedBeanClass );
+ 
+ 		if ( beanMetaData != null ) {
++			if (LOG.isDebugEnabled()) {
++				LOG.debug("Bean metadata cache hit for class: " + normalizedBeanClass.getName());
++			}
+ 			return (BeanMetaData<T>) beanMetaData;
+ 		}
+ 
++		if (LOG.isDebugEnabled()) {
++			LOG.debug("Bean metadata cache miss for class: " + normalizedBeanClass.getName());
++		}
++
+ 		beanMetaData = createBeanMetaData( normalizedBeanClass );
+ 		BeanMetaData<? super T> previousBeanMetaData =
+-				(BeanMetaData<? super T>) beanMetaDataCache.putIfAbsent( normalizedBeanClass, beanMetaData );
++				(BeanMetaData<? super T>) beanMetaDataCache.asMap().putIfAbsent( normalizedBeanClass, beanMetaData );
+ 
+ 		// we return the previous value if not null
+ 		if ( previousBeanMetaData != null ) {
+diff --git a/pom.xml b/pom.xml
+index 69df9332b..f11007a94 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -183,6 +183,8 @@
+ 
+         <!-- Used in the Karaf features file: it is a dependency of Moneta, and for the documentation -->
+         <version.javax.annotation>1.2</version.javax.annotation>
++        <!-- Caffeine cache -->
++        <version.com.github.ben-manes.caffeine>3.1.8</version.com.github.ben-manes.caffeine>
+ 
+         <!-- JavaFX dependencies -->
+         <version.org.openjfx>17.0.19</version.org.openjfx>
+@@ -611,6 +613,12 @@
+                 <artifactId>javax.inject</artifactId>
+                 <version>${version.javax.inject}</version>
+             </dependency>
++            <!-- Caffeine cache -->
++            <dependency>
++                <groupId>com.github.ben-manes.caffeine</groupId>
++                <artifactId>caffeine</artifactId>
++                <version>${version.com.github.ben-manes.caffeine}</version>
++            </dependency>
+         </dependencies>
+     </dependencyManagement>
+ 

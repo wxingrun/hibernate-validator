@@ -171,13 +171,26 @@ public interface BaseHibernateValidatorConfiguration<S extends BaseHibernateVali
 	String SHOW_VALIDATED_VALUE_IN_TRACE_LOGS = "hibernate.validator.show_validated_value_in_trace_logs";
 
 	/**
-	 * Property corresponding to the {@link #failFastOnPropertyViolation} method.
-	 * Accepts {@code true} or {@code false}. Defaults to {@code false}.
-	 *
-	 * @since 9.0
-	 */
-	@Incubating
-	String FAIL_FAST_ON_PROPERTY_VIOLATION = "hibernate.validator.fail_fast_on_property_violation";
+     * Property corresponding to the {@link #failFastOnPropertyViolation} method.
+     * Accepts {@code true} or {@code false}. Defaults to {@code false}.
+     *
+     * @since 9.0
+     */
+    String FAIL_FAST_ON_PROPERTY_VIOLATION = "hibernate.validator.fail_fast_on_property_violation";
+
+    /**
+     * Property for configuring the maximum size of the bean metadata cache.
+     *
+     * @since 9.2
+     */
+    String METADATA_CACHE_MAX_SIZE = "hibernate.validator.metadata_cache.max_size";
+
+    /**
+     * Property for configuring the expire after write duration of the bean metadata cache in milliseconds.
+     *
+     * @since 9.2
+     */
+    String METADATA_CACHE_EXPIRE_AFTER_WRITE = "hibernate.validator.metadata_cache.expire_after_write";
 
 	/**
 	 * <p>
@@ -522,4 +535,24 @@ public interface BaseHibernateValidatorConfiguration<S extends BaseHibernateVali
 	 */
 	@Incubating
 	S processedBeansTrackingVoter(ProcessedBeansTrackingVoter processedBeanTrackingVoter);
+
+	/**
+	 * Configures the maximum size of the bean metadata cache.
+	 *
+	 * @param maxSize the maximum size of the cache.
+	 * @return {@code this} following the chaining method pattern.
+	 * @since 9.2
+	 */
+	@Incubating
+	S metadataCacheMaxSize(int maxSize);
+
+	/**
+	 * Configures the expire after write duration of the bean metadata cache.
+	 *
+	 * @param duration the duration after write to expire entries.
+	 * @return {@code this} following the chaining method pattern.
+	 * @since 9.2
+	 */
+	@Incubating
+	S metadataCacheExpireAfterWrite(Duration duration);
 }

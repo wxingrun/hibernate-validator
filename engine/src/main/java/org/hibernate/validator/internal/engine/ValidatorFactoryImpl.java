@@ -137,6 +137,8 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 	private final ValidationOrderGenerator validationOrderGenerator;
 
 	private final ProcessedBeansTrackingVoter processedBeansTrackingVoter;
+	private final Integer metadataCacheMaxSize;
+	private final Duration metadataCacheExpireAfterWrite;
 
 	public ValidatorFactoryImpl(ConfigurationState configurationState) {
 		ClassLoader externalClassLoader = determineExternalClassLoader( configurationState );
@@ -147,6 +149,9 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 		}
 
 		Map<String, String> properties = configurationState.getProperties();
+
+		this.metadataCacheMaxSize = ValidatorFactoryConfigurationHelper.determineMetadataCacheMaxSize( hibernateSpecificConfig, properties );
+		this.metadataCacheExpireAfterWrite = ValidatorFactoryConfigurationHelper.determineMetadataCacheExpireAfterWrite( hibernateSpecificConfig, properties );
 
 		this.methodValidationConfiguration = new MethodValidationConfiguration.Builder()
 				.allowOverridingMethodAlterParameterConstraint(
@@ -360,7 +365,9 @@ public class ValidatorFactoryImpl implements HibernateValidatorFactory {
 						validationOrderGenerator,
 						buildMetaDataProviders(),
 						methodValidationConfiguration,
-						processedBeansTrackingVoter
+						processedBeansTrackingVoter,
+						metadataCacheMaxSize,
+						metadataCacheExpireAfterWrite
 				)
 		);
 

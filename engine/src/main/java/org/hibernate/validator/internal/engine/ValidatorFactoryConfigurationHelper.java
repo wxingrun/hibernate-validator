@@ -449,6 +449,38 @@ final class ValidatorFactoryConfigurationHelper {
 		return tmpShowValidatedValuesInTraceLogging;
 	}
 
+	static Integer determineMetadataCacheMaxSize(AbstractConfigurationImpl<?> configuration, Map<String, String> properties) {
+		Integer tmpMaxSize = configuration != null ? configuration.getMetadataCacheMaxSize() : null;
+
+		String propertyStringValue = properties.get( HibernateValidatorConfiguration.METADATA_CACHE_MAX_SIZE );
+		if ( propertyStringValue != null ) {
+			try {
+				tmpMaxSize = Integer.parseInt( propertyStringValue );
+			}
+			catch (NumberFormatException e) {
+				throw new IllegalArgumentException( "Invalid metadata cache max size value: " + propertyStringValue, e );
+			}
+		}
+
+		return tmpMaxSize;
+	}
+
+	static Duration determineMetadataCacheExpireAfterWrite(AbstractConfigurationImpl<?> configuration, Map<String, String> properties) {
+		Duration tmpExpireAfterWrite = configuration != null ? configuration.getMetadataCacheExpireAfterWrite() : null;
+
+		String propertyStringValue = properties.get( HibernateValidatorConfiguration.METADATA_CACHE_EXPIRE_AFTER_WRITE );
+		if ( propertyStringValue != null ) {
+			try {
+				tmpExpireAfterWrite = Duration.ofMillis( Long.parseLong( propertyStringValue ) );
+			}
+			catch (NumberFormatException e) {
+				throw new IllegalArgumentException( "Invalid metadata cache expire after write value: " + propertyStringValue, e );
+			}
+		}
+
+		return tmpExpireAfterWrite;
+	}
+
 	static void logValidatorFactoryScopedConfiguration(ValidatorFactoryScopedContext context) {
 		LOG.logValidatorFactoryScopedConfiguration( context.getMessageInterpolator().getClass(), "message interpolator" );
 		LOG.logValidatorFactoryScopedConfiguration( context.getTraversableResolver().getClass(), "traversable resolver" );

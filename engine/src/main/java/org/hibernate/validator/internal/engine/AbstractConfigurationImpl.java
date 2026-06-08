@@ -134,6 +134,8 @@ public abstract class AbstractConfigurationImpl<T extends BaseHibernateValidator
 	private ExpressionLanguageFeatureLevel customViolationExpressionLanguageFeatureLevel;
 	private ProcessedBeansTrackingVoter processedBeansTrackingVoter;
 	private boolean showValidatedValuesInTraceLogs;
+	private Integer metadataCacheMaxSize;
+	private Duration metadataCacheExpireAfterWrite;
 
 	protected AbstractConfigurationImpl(BootstrapState state) {
 		this();
@@ -713,6 +715,32 @@ public abstract class AbstractConfigurationImpl<T extends BaseHibernateValidator
 
 	public ProcessedBeansTrackingVoter getProcessedBeansTrackingVoter() {
 		return processedBeansTrackingVoter;
+	}
+
+	@Override
+	public T metadataCacheMaxSize(int maxSize) {
+		if ( LOG.isDebugEnabled() ) {
+			LOG.debug( "Setting metadata cache max size to " + maxSize );
+		}
+		this.metadataCacheMaxSize = maxSize;
+		return thisAsT();
+	}
+
+	public Integer getMetadataCacheMaxSize() {
+		return metadataCacheMaxSize;
+	}
+
+	@Override
+	public T metadataCacheExpireAfterWrite(Duration duration) {
+		if ( LOG.isDebugEnabled() ) {
+			LOG.debug( "Setting metadata cache expire after write to " + duration );
+		}
+		this.metadataCacheExpireAfterWrite = duration;
+		return thisAsT();
+	}
+
+	public Duration getMetadataCacheExpireAfterWrite() {
+		return metadataCacheExpireAfterWrite;
 	}
 
 	public final Set<DefaultConstraintMapping> getProgrammaticMappings() {

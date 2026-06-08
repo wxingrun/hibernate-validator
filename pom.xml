@@ -183,6 +183,8 @@
 
         <!-- Used in the Karaf features file: it is a dependency of Moneta, and for the documentation -->
         <version.javax.annotation>1.2</version.javax.annotation>
+        <!-- Caffeine cache -->
+        <version.com.github.ben-manes.caffeine>3.1.8</version.com.github.ben-manes.caffeine>
 
         <!-- JavaFX dependencies -->
         <version.org.openjfx>17.0.19</version.org.openjfx>
@@ -610,6 +612,12 @@
                 <groupId>javax.inject</groupId>
                 <artifactId>javax.inject</artifactId>
                 <version>${version.javax.inject}</version>
+            </dependency>
+            <!-- Caffeine cache -->
+            <dependency>
+                <groupId>com.github.ben-manes.caffeine</groupId>
+                <artifactId>caffeine</artifactId>
+                <version>${version.com.github.ben-manes.caffeine}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
