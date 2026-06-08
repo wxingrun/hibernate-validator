@@ -101,6 +101,25 @@ public class RecordConstrainedTest extends AbstractConstrainedTest {
 	}
 
 	@Test
+	public void testRecordWithDeepCascading() {
+		Set<ConstraintViolation<UserProfileRecord>> violations = validator.validate(
+				new UserProfileRecord( new UserRecord( new NameRecord( "a", "bbbb" ), "not_an_email" ), "David" )
+		);
+
+		assertThat( violations ).containsOnlyViolations(
+				violationOf( Email.class ).withPropertyPath( pathWith()
+						.property( "user" )
+						.property( "email" )
+				),
+				violationOf( Size.class ).withPropertyPath( pathWith()
+						.property( "user" )
+						.property( "name" )
+						.property( "first" )
+				)
+		);
+	}
+
+	@Test
 	public void testRecordWithComposingConstraintAndIncorrectTarget() {
 		Set<ConstraintViolation<BadNameRecord>> violations = validator.validate( new BadNameRecord( "a", "b" ) );
 		assertThat( violations ).isEmpty();
@@ -202,6 +221,9 @@ public class RecordConstrainedTest extends AbstractConstrainedTest {
 	}
 
 	private record UserRecord(@Valid NameRecord name, @Email String email) {
+	}
+
+	private record UserProfileRecord(@Valid UserRecord user, String displayName) {
 	}
 
 	private record ConstructorValidationRecord(String name, int age) implements ConstructorValidator {

@@ -1,0 +1,40 @@
+diff --git a/engine/src/test/java/org/hibernate/validator/test/constraints/records/RecordConstrainedTest.java b/engine/src/test/java/org/hibernate/validator/test/constraints/records/RecordConstrainedTest.java
+index a7af89eeb..6ffc7b938 100644
+--- a/engine/src/test/java/org/hibernate/validator/test/constraints/records/RecordConstrainedTest.java
++++ b/engine/src/test/java/org/hibernate/validator/test/constraints/records/RecordConstrainedTest.java
+@@ -100,6 +100,25 @@ public void testRecordWithCascading() {
+ 		);
+ 	}
+ 
++	@Test
++	public void testRecordWithDeepCascading() {
++		Set<ConstraintViolation<UserProfileRecord>> violations = validator.validate(
++				new UserProfileRecord( new UserRecord( new NameRecord( "a", "bbbb" ), "not_an_email" ), "David" )
++		);
++
++		assertThat( violations ).containsOnlyViolations(
++				violationOf( Email.class ).withPropertyPath( pathWith()
++						.property( "user" )
++						.property( "email" )
++				),
++				violationOf( Size.class ).withPropertyPath( pathWith()
++						.property( "user" )
++						.property( "name" )
++						.property( "first" )
++				)
++		);
++	}
++
+ 	@Test
+ 	public void testRecordWithComposingConstraintAndIncorrectTarget() {
+ 		Set<ConstraintViolation<BadNameRecord>> violations = validator.validate( new BadNameRecord( "a", "b" ) );
+@@ -204,6 +223,9 @@ private record NameRecord(@AtLeastNCharacters(min = 2) String first, @AtLeastNCh
+ 	private record UserRecord(@Valid NameRecord name, @Email String email) {
+ 	}
+ 
++	private record UserProfileRecord(@Valid UserRecord user, String displayName) {
++	}
++
+ 	private record ConstructorValidationRecord(String name, int age) implements ConstructorValidator {
+ 		private ConstructorValidationRecord(@NotBlank(message = "Name cannot be null or empty") String name, @Positive(message = "Age has to be a strictly positive integer") int age) {
+ 			validate( name, age );
