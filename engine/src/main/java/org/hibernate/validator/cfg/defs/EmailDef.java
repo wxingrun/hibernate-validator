@@ -5,9 +5,9 @@
 
 package org.hibernate.validator.cfg.defs;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 
+import org.hibernate.validator.constraints.Email;
 import org.hibernate.validator.cfg.ConstraintDef;
 
 /**
@@ -19,6 +19,11 @@ public class EmailDef extends ConstraintDef<EmailDef, Email> {
 
 	public EmailDef() {
 		super( Email.class );
+	}
+
+	public EmailDef allowTld(boolean allowTld) {
+		addParameter( "allowTld", allowTld );
+		return this;
 	}
 
 	public EmailDef regexp(String regexp) {

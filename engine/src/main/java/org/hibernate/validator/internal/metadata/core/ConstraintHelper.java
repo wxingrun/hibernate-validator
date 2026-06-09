@@ -30,6 +30,7 @@ import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.O
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_BR_CNPJ;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_BR_CPF;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_BR_TITULO_ELEITORAL;
+import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_EMAIL;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_CODE_POINT_LENGTH;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_CREDIT_CARD_NUMBER;
 import static org.hibernate.validator.internal.metadata.core.BuiltinConstraint.ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_CURRENCY;
@@ -83,7 +84,6 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.Max;
@@ -138,7 +138,6 @@ import org.hibernate.validator.internal.constraintvalidators.bv.AssertFalseValid
 import org.hibernate.validator.internal.constraintvalidators.bv.AssertTrueValidator;
 import org.hibernate.validator.internal.constraintvalidators.bv.DigitsValidatorForCharSequence;
 import org.hibernate.validator.internal.constraintvalidators.bv.DigitsValidatorForNumber;
-import org.hibernate.validator.internal.constraintvalidators.bv.EmailValidator;
 import org.hibernate.validator.internal.constraintvalidators.bv.NotBlankValidator;
 import org.hibernate.validator.internal.constraintvalidators.bv.NotNullValidator;
 import org.hibernate.validator.internal.constraintvalidators.bv.NullValidator;
@@ -484,7 +483,7 @@ public abstract class ConstraintHelper {
 		}
 
 		if ( enabledBuiltinConstraints.contains( JAKARTA_VALIDATION_CONSTRAINTS_EMAIL ) ) {
-			putBuiltinConstraint( tmpConstraints, Email.class, EmailValidator.class );
+			putBuiltinConstraint( tmpConstraints, jakarta.validation.constraints.Email.class, org.hibernate.validator.internal.constraintvalidators.bv.EmailValidator.class );
 		}
 
 		if ( enabledBuiltinConstraints.contains( JAKARTA_VALIDATION_CONSTRAINTS_FUTURE ) ) {
@@ -782,6 +781,9 @@ public abstract class ConstraintHelper {
 		}
 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_LENGTH ) ) {
 			putBuiltinConstraint( tmpConstraints, Length.class, LengthValidator.class );
+		}
+		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_EMAIL ) ) {
+			putBuiltinConstraint( tmpConstraints, org.hibernate.validator.constraints.Email.class, org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator.class );
 		}
 		if ( enabledBuiltinConstraints.contains( ORG_HIBERNATE_VALIDATOR_CONSTRAINTS_CODE_POINT_LENGTH ) ) {
 			putBuiltinConstraint( tmpConstraints, CodePointLength.class, CodePointLengthValidator.class );

@@ -32,14 +32,14 @@ import org.hibernate.validator.internal.util.DomainNameUtil;
  */
 public class AbstractEmailValidator<A extends Annotation> implements ConstraintValidator<A, CharSequence> {
 
-	private static final int MAX_LOCAL_PART_LENGTH = 64;
+	protected static final int MAX_LOCAL_PART_LENGTH = 64;
 
-	private static final String LOCAL_PART_ATOM = "[a-z0-9!#$%&'*+/=?^_`{|}~\u0080-\uFFFF-]";
-	private static final String LOCAL_PART_INSIDE_QUOTES_ATOM = "(?:[a-z0-9!#$%&'*.(),<>\\[\\]:;  @+/=?^_`{|}~\u0080-\uFFFF-]|\\\\\\\\|\\\\\\\")";
+	protected static final String LOCAL_PART_ATOM = "[a-z0-9!#$%&'*+/=?^_`{|}~\u0080-\uFFFF-]";
+	protected static final String LOCAL_PART_INSIDE_QUOTES_ATOM = "(?:[a-z0-9!#$%&'*.(),<>\\[\\]:;  @+/=?^_`{|}~\u0080-\uFFFF-]|\\\\\\\\|\\\\\\\")";
 	/**
 	 * Regular expression for the local part of an email address (everything before '@')
 	 */
-	private static final Pattern LOCAL_PART_PATTERN = Pattern.compile(
+	protected static final Pattern LOCAL_PART_PATTERN = Pattern.compile(
 			"(?:" + LOCAL_PART_ATOM + "+|\"" + LOCAL_PART_INSIDE_QUOTES_ATOM + "+\")" +
 					"(?:\\." + "(?:" + LOCAL_PART_ATOM + "+|\"" + LOCAL_PART_INSIDE_QUOTES_ATOM + "+\")" + ")*",
 			CASE_INSENSITIVE

@@ -25,6 +25,7 @@ public final class DomainNameUtil {
 	private static final String DOMAIN_CHARS_WITHOUT_DASH = "[a-z\u0080-\uFFFF0-9!#$%&'*+/=?^_`{|}~]";
 	private static final String DOMAIN_LABEL = DOMAIN_CHARS_WITHOUT_DASH + "++(?:-++" + DOMAIN_CHARS_WITHOUT_DASH + "++)*+";
 	private static final String DOMAIN = DOMAIN_LABEL + "(?:\\." + DOMAIN_LABEL + ")*+";
+	private static final String DOMAIN_ALLOW_TLD = DOMAIN_LABEL + "(?:\\." + DOMAIN_LABEL + ")*+";
 
 	private static final String IP_DOMAIN = "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}";
 	//IP v6 regex taken from http://stackoverflow.com/questions/53497/regular-expression-that-matches-valid-ipv6-addresses
@@ -48,6 +49,14 @@ public final class DomainNameUtil {
 			DOMAIN + "|\\[" + IP_DOMAIN + "\\]|" + "\\[IPv6:" + IP_V6_DOMAIN + "\\]", CASE_INSENSITIVE
 	);
 
+	/**
+	 * Regular expression for the domain part of an email address when TLD-only domains are allowed.
+	 * This pattern allows single-label domains like "com", "org", etc.
+	 */
+	private static final Pattern EMAIL_DOMAIN_ALLOW_TLD_PATTERN = Pattern.compile(
+			DOMAIN_ALLOW_TLD + "|\\[" + IP_DOMAIN + "\\]|" + "\\[IPv6:" + IP_V6_DOMAIN + "\\]", CASE_INSENSITIVE
+	);
+
 	private DomainNameUtil() {
 	}
 
@@ -60,6 +69,18 @@ public final class DomainNameUtil {
 	 */
 	public static boolean isValidEmailDomainAddress(String domain) {
 		return isValidDomainAddress( domain, EMAIL_DOMAIN_PATTERN );
+	}
+
+	/**
+	 * Checks the validity of the domain name used in an email, allowing TLD-only domains.
+	 * To be valid it should be either a valid host name (including single-label domains like "com"), or an
+	 * IP address wrapped in [].
+	 *
+	 * @param domain domain to check for validity
+	 * @return {@code true} if the provided string is a valid domain, {@code false} otherwise
+	 */
+	public static boolean isValidEmailDomainAddressAllowTld(String domain) {
+		return isValidDomainAddress( domain, EMAIL_DOMAIN_ALLOW_TLD_PATTERN );
 	}
 
 	/**
